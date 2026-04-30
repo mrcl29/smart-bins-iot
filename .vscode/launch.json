@@ -3,6 +3,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "App",
+            "request": "launch",
+            "mainClass": "app.App",
+            "projectName": "proyecto-final-iot"
+        },
+        {
+            "type": "java",
             "name": "Run App (Generic)",
             "request": "launch",
             "mainClass": "app.App",
