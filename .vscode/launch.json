@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run App (Generic)",
+            "request": "launch",
+            "mainClass": "app.App",
+            "projectName": "proyecto-final-IoT"
+        },
+        {
+            "type": "java",
+            "name": "Debug App (with AWS Env Vars)",
+            "request": "launch",
+            "mainClass": "app.App",
+            "projectName": "proyecto-final-IoT",
+            "env": {
+                "AWS_IOT_ENDPOINT": "your-aws-endpoint.iot.region.amazonaws.com",
+                "AWS_CERT_PATH": "${workspaceFolder}/certs/certificate.pem.crt",
+                "AWS_KEY_PATH": "${workspaceFolder}/certs/private.pem.key"
+            },
+            "console": "internalConsole",
+            "stepFilters": {
+                "skipClasses": [
+                    "$JDK",
+                    "junit.*",
+                    "org.junit.*"
+                ]
+            }
+        }
+    ]
+}
