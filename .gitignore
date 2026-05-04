@@ -2,3 +2,5 @@
 target/
 skills-lock.json
 GEMINI.md
+.env
+cert/

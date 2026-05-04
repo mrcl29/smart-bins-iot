@@ -24,6 +24,14 @@ public class SensorDevice {
         this.publisher = publisher;
     }
 
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    protected MessagePublisher getPublisher() {
+        return publisher;
+    }
+
     /**
      * Reads sensor data and publishes it.
      * 

@@ -4,7 +4,6 @@
         "vscjava.vscode-java-test",
         "vscjava.vscode-java-dependency",
         "vscjava.vscode-maven",
-        "sonarsource.sonarlint-vscode",
         "redhat.java"
     ]
 }
