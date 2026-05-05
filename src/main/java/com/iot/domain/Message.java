@@ -1,5 +1,5 @@
 // src/core/Message.java
-package core;
+package com.iot.domain;
 
 /**
  * Standard Data Transfer Object (DTO) for IoT communication.

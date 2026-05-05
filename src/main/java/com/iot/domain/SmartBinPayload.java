@@ -1,4 +1,4 @@
-package domain;
+package com.iot.domain;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

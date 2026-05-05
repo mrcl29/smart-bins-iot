@@ -1,8 +1,8 @@
-package core;
+package com.iot.ports.out;
 
-import domain.Road;
-import domain.RoadSegment;
-import domain.Vehicle;
+import com.iot.domain.Road;
+import com.iot.domain.RoadSegment;
+import com.iot.domain.Vehicle;
 import java.util.List;
 
 /**

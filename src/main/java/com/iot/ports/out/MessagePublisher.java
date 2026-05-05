@@ -1,5 +1,7 @@
 // src/core/MessagePublisher.java
-package core;
+package com.iot.ports.out;
+
+import com.iot.domain.Message;
 
 /**
  * Interface defining the contract for publishing messages.

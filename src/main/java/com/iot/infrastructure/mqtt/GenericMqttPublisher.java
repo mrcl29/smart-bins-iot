@@ -1,8 +1,8 @@
 // src/infrastructure/mqtt/GenericMqttPublisher.java
-package infrastructure.mqtt;
+package com.iot.infrastructure.mqtt;
 
-import core.Message;
-import core.MessagePublisher;
+import com.iot.domain.Message;
+import com.iot.ports.out.MessagePublisher;
 
 /**
  * Generic MQTT implementation of the MessagePublisher.

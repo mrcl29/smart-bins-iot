@@ -1,6 +1,6 @@
-package infrastructure.mqtt;
+package com.iot.infrastructure.mqtt;
 
-import core.Message;
+import com.iot.domain.Message;
 import software.amazon.awssdk.crt.mqtt.MqttClientConnection;
 import software.amazon.awssdk.crt.mqtt.MqttMessage;
 import software.amazon.awssdk.crt.mqtt.QualityOfService;

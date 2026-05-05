@@ -1,9 +1,9 @@
 // src/tests/SensorDeviceTest.java
-package tests;
+package com.iot.tests;
 
-import core.Message;
-import core.MessagePublisher;
-import domain.SensorDevice;
+import com.iot.domain.Message;
+import com.iot.ports.out.MessagePublisher;
+import com.iot.domain.SensorDevice;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

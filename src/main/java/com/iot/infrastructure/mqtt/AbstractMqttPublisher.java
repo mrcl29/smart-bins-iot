@@ -1,7 +1,7 @@
-package infrastructure.mqtt;
+package com.iot.infrastructure.mqtt;
 
-import core.Message;
-import core.MessagePublisher;
+import com.iot.domain.Message;
+import com.iot.ports.out.MessagePublisher;
 
 /**
  * Base class for MQTT-based message publishers.

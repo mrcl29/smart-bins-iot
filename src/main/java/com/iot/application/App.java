@@ -1,16 +1,16 @@
 // src/App.java
-package app;
+package com.iot.application;
 
-import core.MessagePublisher;
-import core.TrafficService;
-import domain.Location;
-import domain.Road;
-import domain.RoadSegment;
-import domain.SensorDevice;
-import domain.SmartBinDevice;
-import domain.Vehicle;
-import infrastructure.mqtt.AwsMqttPublisher;
-import infrastructure.rest.RestTrafficService;
+import com.iot.ports.out.MessagePublisher;
+import com.iot.ports.out.TrafficService;
+import com.iot.domain.Location;
+import com.iot.domain.Road;
+import com.iot.domain.RoadSegment;
+import com.iot.domain.SensorDevice;
+import com.iot.domain.SmartBinDevice;
+import com.iot.domain.Vehicle;
+import com.iot.infrastructure.mqtt.AwsMqttPublisher;
+import com.iot.infrastructure.rest.RestTrafficService;
 import io.github.cdimascio.dotenv.Dotenv;
 
 import java.util.List;

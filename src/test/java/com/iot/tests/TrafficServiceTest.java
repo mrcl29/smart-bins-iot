@@ -1,10 +1,10 @@
-package tests;
+package com.iot.tests;
 
-import core.TrafficService;
-import domain.Road;
-import domain.RoadSegment;
-import domain.Vehicle;
-import infrastructure.rest.RestTrafficService;
+import com.iot.ports.out.TrafficService;
+import com.iot.domain.Road;
+import com.iot.domain.RoadSegment;
+import com.iot.domain.Vehicle;
+import com.iot.infrastructure.rest.RestTrafficService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;

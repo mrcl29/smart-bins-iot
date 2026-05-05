@@ -1,8 +1,8 @@
 // src/domain/SensorDevice.java
-package domain;
+package com.iot.domain;
 
-import core.Message;
-import core.MessagePublisher;
+import com.iot.domain.Message;
+import com.iot.ports.out.MessagePublisher;
 
 import java.util.Locale;
 

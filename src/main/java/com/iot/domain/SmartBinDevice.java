@@ -1,8 +1,8 @@
-package domain;
+package com.iot.domain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import core.Message;
-import core.MessagePublisher;
+import com.iot.domain.Message;
+import com.iot.ports.out.MessagePublisher;
 
 /**
  * Scalable Smart Bin device implementation.

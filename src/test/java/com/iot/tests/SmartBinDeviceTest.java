@@ -1,9 +1,9 @@
-package tests;
+package com.iot.tests;
 
-import core.Message;
-import core.MessagePublisher;
-import domain.Location;
-import domain.SmartBinDevice;
+import com.iot.domain.Message;
+import com.iot.ports.out.MessagePublisher;
+import com.iot.domain.Location;
+import com.iot.domain.SmartBinDevice;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

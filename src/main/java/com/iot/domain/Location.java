@@ -1,4 +1,4 @@
-package domain;
+package com.iot.domain;
 
 /**
  * Represents the physical location of an IoT device.

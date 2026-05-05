@@ -1,10 +1,10 @@
-package infrastructure.rest;
+package com.iot.infrastructure.rest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import core.TrafficService;
-import domain.Road;
-import domain.RoadSegment;
-import domain.Vehicle;
+import com.iot.ports.out.TrafficService;
+import com.iot.domain.Road;
+import com.iot.domain.RoadSegment;
+import com.iot.domain.Vehicle;
 
 import java.util.List;
 

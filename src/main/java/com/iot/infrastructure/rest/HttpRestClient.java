@@ -1,4 +1,4 @@
-package infrastructure.rest;
+package com.iot.infrastructure.rest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
