@@ -1,26 +1,41 @@
 package com.iot.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a sequence of segments that define a path for a vehicle.
+ * Represents a sequence of segments (tramos) that define a path for a vehicle.
+ * Matches the format: {"route": [ [point1, point2], [point3, point4] ]}
  */
 public class Route {
-    private List<RouteSegment> segments = new ArrayList<>();
+    @JsonProperty("route")
+    private List<List<RoutePoint>> segments = new ArrayList<>();
 
     public Route() {}
 
-    public List<RouteSegment> getSegments() { return segments; }
-    public void setSegments(List<RouteSegment> segments) { this.segments = segments; }
+    public List<List<RoutePoint>> getSegments() { return segments; }
+    public void setSegments(List<List<RoutePoint>> segments) { this.segments = segments; }
 
-    public static class RouteSegment {
+    /**
+     * Adds a segment (tramo) to the route.
+     * @param start The starting point of the segment.
+     * @param end The ending point of the segment.
+     */
+    public void addSegment(RoutePoint start, RoutePoint end) {
+        List<RoutePoint> tramo = new ArrayList<>();
+        tramo.add(start);
+        tramo.add(end);
+        segments.add(tramo);
+    }
+
+    public static class RoutePoint {
         private String road;
         private double point;
 
-        public RouteSegment() {}
+        public RoutePoint() {}
 
-        public RouteSegment(String road, double point) {
+        public RoutePoint(String road, double point) {
             this.road = road;
             this.point = point;
         }

@@ -25,21 +25,32 @@ public class RouteCollectionUseCase {
         this.subscriber = subscriber;
     }
 
+    /**
+     * Simulates the calculation and setting of a collection route.
+     * In this project, route calculation is theoretical and therefore simulated.
+     */
     public void calculateAndSetRoute(String truckId, List<SmartBinDevice> bins) {
-        System.out.println("Calculating route for truck " + truckId + " based on bin fill levels...");
+        System.out.println("[SIMULATION] Calculating optimal collection route for truck: " + truckId);
+        System.out.println("[SIMULATION] Analyzing fill levels for " + bins.size() + " bins...");
         
-        Route route = new Route();
-        // Simplified route calculation: just go to the first bin's location
+        // Theoretical Route: In a real implementation, this would involve pathfinding
+        // based on bin locations and current traffic density.
+        Route simulatedRoute = new Route();
         for (SmartBinDevice bin : bins) {
-            // This is a simplification. In a real scenario, we would use TrafficService to find the path.
-            route.getSegments().add(new Route.RouteSegment(bin.getRoadLocation().getRoadSegmentId(), bin.getRoadLocation().getKilometricPoint()));
+            // A segment (tramo) is a list of two points
+            Route.RoutePoint start = new Route.RoutePoint(bin.getRoadLocation().getRoadSegmentId(), 0.0);
+            Route.RoutePoint end = new Route.RoutePoint(bin.getRoadLocation().getRoadSegmentId(), bin.getRoadLocation().getKilometricPoint());
+            simulatedRoute.addSegment(start, end);
         }
 
+        System.out.println("[SIMULATION] Route optimized. Total stops: " + simulatedRoute.getSegments().size());
+
         try {
-            navigationPort.setRoute(truckId, route);
-            System.out.println("Route set successfully for truck " + truckId);
+            // We still send the "calculated" route to the navigation port to simulate the message exchange
+            navigationPort.setRoute(truckId, simulatedRoute);
+            System.out.println("[SIMULATION] Route message sent to truck " + truckId);
         } catch (Exception e) {
-            System.err.println("Error setting route for truck " + truckId + ": " + e.getMessage());
+            System.err.println("Error simulating route for truck " + truckId + ": " + e.getMessage());
         }
     }
 

@@ -26,25 +26,25 @@ classDiagram
 
     class VehicleNavigationPort {
         <<interface>>
+        +registerVehicle(vehicle: Vehicle) void
         +setRoute(vehicleId: String, route: Route) void
     }
 
     %% ==========================================
     %% Domain Entities & Use Cases
     %% ==========================================
-    class RoadLocation {
-        +roadSegmentId: String
-        +kilometricPoint: double
+    class Vehicle {
+        +id: String
+        +speed: int
+        +characterization: Characterization
     }
 
-    class Route {
-        +segments: List~RouteSegment~
-    }
-
-    class SensorDevice {
-        -deviceId: String
+    class GarbageTruck {
+        -currentLocation: RoadLocation
         -publisher: MessagePublisher
-        +sendTelemetry(reading: double) void
+        +updateLocation(newLocation: RoadLocation) void
+        +collectWaste(binId: String) void
+        -publishTrafficEvent(action: String) void
     }
 
     class SmartBinDevice {
@@ -56,12 +56,14 @@ classDiagram
         -publishMessage(level: double, status: String, topic: String) void
     }
 
-    class GarbageTruck {
-        -vehicleId: String
-        -currentLocation: RoadLocation
-        -publisher: MessagePublisher
-        +updateLocation(newLocation: RoadLocation) void
-        -publishTrafficEvent(action: String) void
+    class Route {
+        +segments: List~List~RoutePoint~~
+        +addSegment(start: RoutePoint, end: RoutePoint) void
+    }
+
+    class RoutePoint {
+        +road: String
+        +point: double
     }
 
     class RouteCollectionUseCase {
@@ -72,79 +74,48 @@ classDiagram
         +handleTrafficIncident(incident: TrafficMessagePayload) void
     }
 
-    class TrafficMessagePayload {
-        +action: String
-        +road: String
-        +roadSegment: String
-        +vehicleId: String
-        +position: double
-        +role: String
-    }
-
     %% ==========================================
     %% Infrastructure Adapters
     %% ==========================================
-    class AbstractMqttAdapter {
-        <<abstract>>
-        #brokerUrl: String
-        #clientId: String
-        #ensureConnected()* void
-    }
-
     class AwsMqttAdapter {
         -connection: MqttClientConnection
         +publish(msg: Message) void
         +subscribe(topic: String, callback: Consumer~Message~) void
     }
 
-    class HttpRestClient {
-        -baseUrl: String
-        +get(path: String, responseType: Class) T
-        +put(path: String, body: Object, responseType: Class) R
-    }
-
     class RestTrafficAdapter {
         -restClient: HttpRestClient
-        +getAllRoads() List~Road~
+        +getSegment(id: String) RoadSegment
     }
 
     class RestVehicleNavigationAdapter {
         -restClient: HttpRestClient
+        +registerVehicle(vehicle: Vehicle) void
         +setRoute(vehicleId: String, route: Route) void
     }
 
-    class App {
-        %% Main application orchestrator
+    class MockTrafficServer {
+        -server: HttpServer
+        +start() void
+        +stop() void
     }
 
     %% ==========================================
     %% Relationships
     %% ==========================================
 
-    %% Inheritance & Implementation
+    Vehicle <|-- GarbageTruck : Extends
     SensorDevice <|-- SmartBinDevice : Extends
+    
     MessagePublisher <|.. AwsMqttAdapter : Implements
     MessageSubscriber <|.. AwsMqttAdapter : Implements
-    AbstractMqttAdapter <|-- AwsMqttAdapter : Extends
     TrafficService <|.. RestTrafficAdapter : Implements
     VehicleNavigationPort <|.. RestVehicleNavigationAdapter : Implements
 
-    %% Composition & Aggregation
-    SmartBinDevice --> RoadLocation : Contains
-    GarbageTruck --> RoadLocation : Contains
-    GarbageTruck --> TrafficMessagePayload : Creates
-    RestTrafficAdapter --> HttpRestClient : Uses
-    RestVehicleNavigationAdapter --> HttpRestClient : Uses
-
-    %% Dependency Injection / Orchestration
-    SmartBinDevice --> MessagePublisher : Uses
-    GarbageTruck --> MessagePublisher : Uses
-    RouteCollectionUseCase --> TrafficService : Uses
-    RouteCollectionUseCase --> VehicleNavigationPort : Uses
-    RouteCollectionUseCase --> MessageSubscriber : Uses
-
-    %% Setup
+    App --> MockTrafficServer : Manages Fallback
     App --> AwsMqttAdapter : Initializes
-    App --> RestTrafficAdapter : Initializes
-    App --> RestVehicleNavigationAdapter : Initializes
     App --> RouteCollectionUseCase : Orchestrates
+    
+    Route --> RoutePoint : Uses
+    GarbageTruck --> MessagePublisher : Uses
+    SmartBinDevice --> MessagePublisher : Uses

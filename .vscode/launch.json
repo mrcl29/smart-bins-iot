@@ -5,6 +5,13 @@
             "type": "java",
             "name": "App",
             "request": "launch",
+            "mainClass": "com.iot.application.App",
+            "projectName": "proyecto-final-iot"
+        },
+        {
+            "type": "java",
+            "name": "App",
+            "request": "launch",
             "mainClass": "app.App",
             "projectName": "proyecto-final-iot"
         },
