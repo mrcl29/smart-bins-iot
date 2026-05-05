@@ -1,8 +1,6 @@
-// src/infrastructure/aws/AwsIotPublisher.java
-package infrastructure.aws;
+package infrastructure.mqtt;
 
 import core.Message;
-import core.MessagePublisher;
 import software.amazon.awssdk.crt.mqtt.MqttClientConnection;
 import software.amazon.awssdk.crt.mqtt.MqttMessage;
 import software.amazon.awssdk.crt.mqtt.QualityOfService;
@@ -15,15 +13,14 @@ import java.util.concurrent.ExecutionException;
 /**
  * AWS IoT specific implementation using AWS IoT Device SDK v2.
  */
-public class AwsIotPublisher implements MessagePublisher, AutoCloseable {
-    private final String endpoint;
+public class AwsMqttPublisher extends AbstractMqttPublisher {
     private final String certificatePath;
     private final String privateKeyPath;
     private final String caPath;
     private MqttClientConnection connection;
 
-    public AwsIotPublisher(String endpoint, String certPath, String keyPath, String caPath) {
-        this.endpoint = endpoint;
+    public AwsMqttPublisher(String endpoint, String certPath, String keyPath, String caPath) {
+        super(endpoint, "smart-traffic-publisher-" + System.currentTimeMillis());
         this.certificatePath = certPath;
         this.privateKeyPath = keyPath;
         this.caPath = caPath;
@@ -32,7 +29,7 @@ public class AwsIotPublisher implements MessagePublisher, AutoCloseable {
 
     private void authenticateAndConnect() {
         System.out.println("Connecting to AWS IoT with:");
-        System.out.println(" - Endpoint: " + endpoint);
+        System.out.println(" - Endpoint: " + brokerUrl);
         System.out.println(" - Cert: " + certificatePath);
         System.out.println(" - Key: " + privateKeyPath);
         System.out.println(" - CA: " + caPath);
@@ -44,15 +41,15 @@ public class AwsIotPublisher implements MessagePublisher, AutoCloseable {
                 builder.withCertificateAuthorityFromPath(null, caPath);
             }
             
-            builder.withEndpoint(endpoint)
-                   .withClientId("smart-traffic-publisher-" + System.currentTimeMillis())
+            builder.withEndpoint(brokerUrl)
+                   .withClientId(clientId)
                    .withCleanSession(true);
 
             this.connection = builder.build();
             CompletableFuture<Boolean> connected = connection.connect();
             
             if (connected.get()) {
-                System.out.println("Successfully connected to AWS IoT Core: " + this.endpoint);
+                System.out.println("Successfully connected to AWS IoT Core: " + this.brokerUrl);
             } else {
                 System.err.println("Failed to connect to AWS IoT Core.");
             }
@@ -65,11 +62,14 @@ public class AwsIotPublisher implements MessagePublisher, AutoCloseable {
     }
 
     @Override
-    public void publish(Message message) throws Exception {
+    protected void ensureConnected() throws Exception {
         if (connection == null) {
-            throw new IllegalStateException("MQTT connection is not established.");
+            throw new IllegalStateException("AWS MQTT connection is not established.");
         }
+    }
 
+    @Override
+    protected void performPublish(Message message) throws Exception {
         MqttMessage mqttMessage = new MqttMessage(
                 message.getTopic(),
                 message.getPayload().getBytes(StandardCharsets.UTF_8),
@@ -78,7 +78,6 @@ public class AwsIotPublisher implements MessagePublisher, AutoCloseable {
 
         CompletableFuture<Integer> published = connection.publish(mqttMessage);
         published.get(); // Wait for the publish to complete
-        System.out.println("Published to AWS IoT topic: " + message.getTopic());
     }
 
     @Override

@@ -9,7 +9,7 @@ import domain.RoadSegment;
 import domain.SensorDevice;
 import domain.SmartBinDevice;
 import domain.Vehicle;
-import infrastructure.aws.AwsIotPublisher;
+import infrastructure.mqtt.AwsMqttPublisher;
 import infrastructure.rest.RestTrafficService;
 import io.github.cdimascio.dotenv.Dotenv;
 
@@ -20,7 +20,7 @@ public class App {
         // Load environment variables from .env file
         Dotenv dotenv = Dotenv.load();
 
-        try (MessagePublisher awsPublisher = new AwsIotPublisher(
+        try (MessagePublisher awsPublisher = new AwsMqttPublisher(
                 dotenv.get("AWS_IOT_ENDPOINT"),
                 dotenv.get("AWS_CERT_PATH"),
                 dotenv.get("AWS_KEY_PATH"),

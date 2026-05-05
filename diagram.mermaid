@@ -1,0 +1,105 @@
+classDiagram
+          direction TB
+
+          %% Core Interfaces (Puertos)
+          class MessagePublisher {
+              <<interface>>
+              +publish(msg: Message) void
+              +close() void
+          }
+
+         class TrafficService {
+             <<interface>>
+             +getAllRoads() List~Road~
+             +getRoad(id: String) Road
+             +getSegment(id: String) RoadSegment
+             +getVehicles() List~Vehicle~
+         }
+
+         %% Domain Entities
+         class SensorDevice {
+             -deviceId: String
+             -publisher: MessagePublisher
+             +sendTelemetry(reading: double) void
+         }
+
+         class SmartBinDevice {
+             -alertThreshold: double
+             -wasteType: String
+             -location: Location
+             +updateFillLevel(level: double) void
+             -publishMessage(level: double, status: String, topic: String)
+       void
+         }
+
+         class Location {
+             +street: String
+             +latitude: double
+             +longitude: double
+         }
+
+         class SmartBinPayload {
+             +deviceId: String
+             +status: String
+             +fillLevel: double
+             +metadata: BinMetadata
+         }
+
+         %% Infrastructure - MQTT Abstraction
+         class AbstractMqttPublisher {
+             <<abstract>>
+             #brokerUrl: String
+             #clientId: String
+             +publish(msg: Message) void
+             #ensureConnected()* void
+             #performPublish(msg: Message)* void
+         }
+
+         class AwsMqttPublisher {
+             -connection: MqttClientConnection
+             -certificatePath: String
+             -privateKeyPath: String
+             #ensureConnected() void
+             #performPublish(msg: Message) void
+         }
+
+         class GenericMqttPublisher {
+             #ensureConnected() void
+             #performPublish(msg: Message) void
+         }
+
+         %% Infrastructure - REST Abstraction
+         class HttpRestClient {
+             -baseUrl: String
+             -httpClient: HttpClient
+             -objectMapper: ObjectMapper
+             +get(path: String, responseType: Class) T
+             +getList(path: String, typeRef: TypeReference) List~T~
+             +post(path: String, body: Object, responseType: Class) R
+         }
+
+         class RestTrafficService {
+             -restClient: HttpRestClient
+             +getAllRoads() List~Road~
+         }
+
+         class App {
+             %% Main application orchestrator
+         }
+
+         %% Relationships
+         SensorDevice <|-- SmartBinDevice : Extends
+         SensorDevice --> MessagePublisher : Uses (DI)
+         SmartBinDevice --> Location : Contains
+         SmartBinDevice ..> SmartBinPayload : Serializes
+
+         MessagePublisher <|.. AbstractMqttPublisher : Implements
+         AbstractMqttPublisher <|-- AwsMqttPublisher : Extends
+         AbstractMqttPublisher <|-- GenericMqttPublisher : Extends
+
+         TrafficService <|.. RestTrafficService : Implements
+        RestTrafficService --> HttpRestClient : Uses (Delegation)
+
+        App --> MessagePublisher : Initializes (AwsMqttPublisher)
+        App --> TrafficService : Initializes (RestTrafficService)
+        App --> SensorDevice : Orchestrates

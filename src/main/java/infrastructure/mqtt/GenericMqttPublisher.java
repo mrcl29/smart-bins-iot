@@ -7,24 +7,30 @@ import core.MessagePublisher;
 /**
  * Generic MQTT implementation of the MessagePublisher.
  */
-public class GenericMqttPublisher implements MessagePublisher {
-    private final String brokerUrl;
-    private final String clientId;
+public class GenericMqttPublisher extends AbstractMqttPublisher {
 
     public GenericMqttPublisher(String brokerUrl, String clientId) {
-        this.brokerUrl = brokerUrl;
-        this.clientId = clientId;
+        super(brokerUrl, clientId);
         this.connect();
     }
 
     private void connect() {
-        // Implementation for standard MQTT connection using MQTTS
-        System.out.println("Connected to generic broker at: " + this.brokerUrl);
+        // Implementation for standard MQTT connection would go here
+        System.out.println("Connecting to generic broker at: " + this.brokerUrl);
     }
 
     @Override
-    public void publish(Message message) throws Exception {
-        // Implementation for publishing via standard MQTT
-        System.out.println("Publishing via standard MQTT to " + message.getTopic());
+    protected void ensureConnected() throws Exception {
+        // In a real implementation, check if the client is actually connected
+    }
+
+    @Override
+    protected void performPublish(Message message) throws Exception {
+        // Implementation for publishing via standard MQTT library (e.g., Paho)
+    }
+
+    @Override
+    public void close() throws Exception {
+        System.out.println("Closing generic MQTT connection.");
     }
 }
