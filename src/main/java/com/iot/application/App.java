@@ -1,85 +1,76 @@
-// src/App.java
 package com.iot.application;
 
-import com.iot.ports.out.MessagePublisher;
-import com.iot.ports.out.TrafficService;
-import com.iot.domain.Location;
+import com.iot.domain.RoadLocation;
 import com.iot.domain.Road;
 import com.iot.domain.RoadSegment;
 import com.iot.domain.SensorDevice;
 import com.iot.domain.SmartBinDevice;
 import com.iot.domain.Vehicle;
-import com.iot.infrastructure.mqtt.AwsMqttPublisher;
-import com.iot.infrastructure.rest.RestTrafficService;
+import com.iot.domain.GarbageTruck;
+import com.iot.infrastructure.mqtt.AwsMqttAdapter;
+import com.iot.infrastructure.rest.RestTrafficAdapter;
+import com.iot.infrastructure.rest.RestVehicleNavigationAdapter;
+import com.iot.ports.out.MessagePublisher;
+import com.iot.ports.out.MessageSubscriber;
+import com.iot.ports.out.TrafficService;
+import com.iot.ports.out.VehicleNavigationPort;
 import io.github.cdimascio.dotenv.Dotenv;
 
 import java.util.List;
+import java.util.Arrays;
 
 public class App {
     public static void main(String[] args) {
-        // Load environment variables from .env file
         Dotenv dotenv = Dotenv.load();
 
-        try (MessagePublisher awsPublisher = new AwsMqttPublisher(
-                dotenv.get("AWS_IOT_ENDPOINT"),
-                dotenv.get("AWS_CERT_PATH"),
-                dotenv.get("AWS_KEY_PATH"),
-                dotenv.get("AWS_CA_PATH"))) {
+        String awsEndpoint = dotenv.get("AWS_IOT_ENDPOINT");
+        String certPath = dotenv.get("AWS_CERT_PATH");
+        String keyPath = dotenv.get("AWS_KEY_PATH");
+        String caPath = dotenv.get("AWS_CA_PATH");
+        String trafficApiUrl = "http://ttmi008.iot.upv.es:8182";
 
-            // Generic sensor
-            SensorDevice temperatureSensor = new SensorDevice("temp-sensor-valencia-01", awsPublisher);
-            temperatureSensor.sendTelemetry(24.5);
-
-            // Smart Bin implementation - Refactored for scalability
-            System.out.println("\n--- Smart Bin Monitoring ---");
+        try (AwsMqttAdapter mqttAdapter = new AwsMqttAdapter(awsEndpoint, certPath, keyPath, caPath)) {
             
-            // Bin 1: Organic waste in Valencia City Center
-            Location colonLocation = new Location("Carrer de Colón", 39.4697, -0.3725);
-            SmartBinDevice binOrganic = new SmartBinDevice(
-                "Bin_Valencia_Org_01", awsPublisher, 80.0, "ORGANIC", colonLocation);
+            TrafficService trafficService = new RestTrafficAdapter(trafficApiUrl);
+            VehicleNavigationPort navigationPort = new RestVehicleNavigationAdapter(trafficApiUrl);
             
-            // Bin 2: Plastic waste near the University
-            Location blascoLocation = new Location("Avinguda de Blasco Ibáñez", 39.4791, -0.3468);
-            SmartBinDevice binPlastic = new SmartBinDevice(
-                "Bin_Valencia_Pla_05", awsPublisher, 75.0, "PLASTIC", blascoLocation);
+            // Domain entities
+            System.out.println("\n--- Initializing Devices ---");
+            RoadLocation bin1Loc = new RoadLocation("R1S1", 10.0);
+            SmartBinDevice bin1 = new SmartBinDevice("Bin_Valencia_Org_01", mqttAdapter, 80.0, "ORGANIC", bin1Loc);
 
-            System.out.println("Updating Bin 1 (Organic)...");
-            binOrganic.updateFillLevel(40.0);
+            RoadLocation truckLoc = new RoadLocation("R5s1", 0.0);
+            GarbageTruck truck = new GarbageTruck("Truck_01", mqttAdapter);
+            truck.updateLocation(truckLoc);
+
+            // Use Case orchestration
+            RouteCollectionUseCase routeUseCase = new RouteCollectionUseCase(trafficService, navigationPort, mqttAdapter);
             
-            System.out.println("Updating Bin 2 (Plastic) - Triggering Alert...");
-            binPlastic.updateFillLevel(92.0);
+            System.out.println("\n--- Simulating Waste Collection ---");
+            bin1.updateFillLevel(95.0); // Triggers alert
+            
+            routeUseCase.calculateAndSetRoute(truck.getVehicleId(), Arrays.asList(bin1));
 
-            System.out.println("\n--- Smart Traffic Integration ---");
-            TrafficService trafficService = new RestTrafficService("http://ttmi008.iot.upv.es:8182");
-
+            // Traffic monitoring simulation
+            System.out.println("\n--- Traffic Monitoring ---");
             try {
-                System.out.println("Fetching all roads...");
                 List<Road> roads = trafficService.getAllRoads();
                 System.out.println("Available roads: " + roads.size());
-                if (!roads.isEmpty()) {
-                    System.out.println("Example road: " + roads.get(0));
-                }
-
-                System.out.println("\nFetching information for road R10...");
-                Road r10 = trafficService.getRoad("R10");
-                System.out.println("Road R10 Name: " + r10.getName());
-                if (r10.getSegments() != null && !r10.getSegments().isEmpty()) {
-                    System.out.println("Road R10 First Segment Status: " + r10.getSegments().get(0).getStatus());
-                }
-
-                System.out.println("\nFetching information for segment R5s1...");
-                RoadSegment r5s1 = trafficService.getSegment("R5s1");
-                System.out.println("Segment R5s1 density: " + r5s1.getDensity());
-
-                System.out.println("\nFetching simulated vehicles...");
-                List<Vehicle> vehicles = trafficService.getVehicles();
-                System.out.println("Active vehicles: " + vehicles.size());
-
+                
+                RoadSegment segment = trafficService.getSegment("R1S1");
+                System.out.println("R1S1 Status: " + segment.getStatus());
             } catch (Exception e) {
-                System.err.println("Error communicating with Smart Traffic server: " + e.getMessage());
+                System.err.println("Traffic API error: " + e.getMessage());
             }
+
+            // Subscribe to traffic alerts (as per PDF Paso 1)
+            mqttAdapter.subscribe("iot/2023/smart-bins/road/R1S1/alerts", (msg) -> {
+                System.out.println("ALERT RECEIVED: " + msg.getPayload());
+            });
+
         } catch (Exception e) {
-            System.err.println("Error in IoT Publisher: " + e.getMessage());
+            System.err.println("Application Error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

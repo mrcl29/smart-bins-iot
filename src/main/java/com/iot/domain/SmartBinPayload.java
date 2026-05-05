@@ -38,9 +38,9 @@ public class SmartBinPayload {
 
     public static class BinMetadata {
         private final String wasteType;
-        private final Location location;
+        private final RoadLocation location;
 
-        public BinMetadata(String wasteType, Location location) {
+        public BinMetadata(String wasteType, RoadLocation location) {
             this.wasteType = wasteType;
             this.location = location;
         }
@@ -49,6 +49,6 @@ public class SmartBinPayload {
         public String getWasteType() { return wasteType; }
 
         @JsonProperty("location")
-        public Location getLocation() { return location; }
+        public RoadLocation getLocation() { return location; }
     }
 }

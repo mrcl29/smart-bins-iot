@@ -1,32 +1,35 @@
-// src/infrastructure/mqtt/GenericMqttPublisher.java
 package com.iot.infrastructure.mqtt;
 
 import com.iot.domain.Message;
-import com.iot.ports.out.MessagePublisher;
+import java.util.function.Consumer;
 
 /**
- * Generic MQTT implementation of the MessagePublisher.
+ * Generic MQTT implementation of the MQTT adapter (Stub).
  */
-public class GenericMqttPublisher extends AbstractMqttPublisher {
+public class GenericMqttPublisher extends AbstractMqttAdapter {
 
     public GenericMqttPublisher(String brokerUrl, String clientId) {
         super(brokerUrl, clientId);
-        this.connect();
-    }
-
-    private void connect() {
-        // Implementation for standard MQTT connection would go here
-        System.out.println("Connecting to generic broker at: " + this.brokerUrl);
     }
 
     @Override
     protected void ensureConnected() throws Exception {
-        // In a real implementation, check if the client is actually connected
+        // Implementation for standard MQTT connection
     }
 
     @Override
     protected void performPublish(Message message) throws Exception {
-        // Implementation for publishing via standard MQTT library (e.g., Paho)
+        // Implementation for publishing
+    }
+
+    @Override
+    protected void performSubscribe(String topic, Consumer<Message> callback) throws Exception {
+        // Implementation for subscribing
+    }
+
+    @Override
+    protected void performUnsubscribe(String topic) throws Exception {
+        // Implementation for unsubscribing
     }
 
     @Override

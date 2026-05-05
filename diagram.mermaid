@@ -1,105 +1,150 @@
 classDiagram
-          direction TB
+    direction TB
 
-          %% Core Interfaces (Puertos)
-          class MessagePublisher {
-              <<interface>>
-              +publish(msg: Message) void
-              +close() void
-          }
+    %% ==========================================
+    %% Core Interfaces (Ports)
+    %% ==========================================
+    class MessagePublisher {
+        <<interface>>
+        +publish(msg: Message) void
+        +close() void
+    }
 
-         class TrafficService {
-             <<interface>>
-             +getAllRoads() List~Road~
-             +getRoad(id: String) Road
-             +getSegment(id: String) RoadSegment
-             +getVehicles() List~Vehicle~
-         }
+    class MessageSubscriber {
+        <<interface>>
+        +subscribe(topic: String, callback: Consumer~Message~) void
+        +unsubscribe(topic: String) void
+    }
 
-         %% Domain Entities
-         class SensorDevice {
-             -deviceId: String
-             -publisher: MessagePublisher
-             +sendTelemetry(reading: double) void
-         }
+    class TrafficService {
+        <<interface>>
+        +getAllRoads() List~Road~
+        +getRoad(id: String) Road
+        +getSegment(id: String) RoadSegment
+        +getVehicles() List~Vehicle~
+    }
 
-         class SmartBinDevice {
-             -alertThreshold: double
-             -wasteType: String
-             -location: Location
-             +updateFillLevel(level: double) void
-             -publishMessage(level: double, status: String, topic: String)
-       void
-         }
+    class VehicleNavigationPort {
+        <<interface>>
+        +setRoute(vehicleId: String, route: Route) void
+    }
 
-         class Location {
-             +street: String
-             +latitude: double
-             +longitude: double
-         }
+    %% ==========================================
+    %% Domain Entities & Use Cases
+    %% ==========================================
+    class RoadLocation {
+        +roadSegmentId: String
+        +kilometricPoint: double
+    }
 
-         class SmartBinPayload {
-             +deviceId: String
-             +status: String
-             +fillLevel: double
-             +metadata: BinMetadata
-         }
+    class Route {
+        +segments: List~RouteSegment~
+    }
 
-         %% Infrastructure - MQTT Abstraction
-         class AbstractMqttPublisher {
-             <<abstract>>
-             #brokerUrl: String
-             #clientId: String
-             +publish(msg: Message) void
-             #ensureConnected()* void
-             #performPublish(msg: Message)* void
-         }
+    class SensorDevice {
+        -deviceId: String
+        -publisher: MessagePublisher
+        +sendTelemetry(reading: double) void
+    }
 
-         class AwsMqttPublisher {
-             -connection: MqttClientConnection
-             -certificatePath: String
-             -privateKeyPath: String
-             #ensureConnected() void
-             #performPublish(msg: Message) void
-         }
+    class SmartBinDevice {
+        -alertThreshold: double
+        -wasteType: String
+        -location: RoadLocation
+        +updateFillLevel(level: double) void
+        +updateLocation(newLocation: RoadLocation) void
+        -publishMessage(level: double, status: String, topic: String) void
+    }
 
-         class GenericMqttPublisher {
-             #ensureConnected() void
-             #performPublish(msg: Message) void
-         }
+    class GarbageTruck {
+        -vehicleId: String
+        -currentLocation: RoadLocation
+        -publisher: MessagePublisher
+        +updateLocation(newLocation: RoadLocation) void
+        -publishTrafficEvent(action: String) void
+    }
 
-         %% Infrastructure - REST Abstraction
-         class HttpRestClient {
-             -baseUrl: String
-             -httpClient: HttpClient
-             -objectMapper: ObjectMapper
-             +get(path: String, responseType: Class) T
-             +getList(path: String, typeRef: TypeReference) List~T~
-             +post(path: String, body: Object, responseType: Class) R
-         }
+    class RouteCollectionUseCase {
+        -trafficService: TrafficService
+        -navigationPort: VehicleNavigationPort
+        -subscriber: MessageSubscriber
+        +calculateAndSetRoute(truckId: String, bins: List~SmartBinDevice~) void
+        +handleTrafficIncident(incident: TrafficMessagePayload) void
+    }
 
-         class RestTrafficService {
-             -restClient: HttpRestClient
-             +getAllRoads() List~Road~
-         }
+    class TrafficMessagePayload {
+        +action: String
+        +road: String
+        +roadSegment: String
+        +vehicleId: String
+        +position: double
+        +role: String
+    }
 
-         class App {
-             %% Main application orchestrator
-         }
+    %% ==========================================
+    %% Infrastructure Adapters
+    %% ==========================================
+    class AbstractMqttAdapter {
+        <<abstract>>
+        #brokerUrl: String
+        #clientId: String
+        #ensureConnected()* void
+    }
 
-         %% Relationships
-         SensorDevice <|-- SmartBinDevice : Extends
-         SensorDevice --> MessagePublisher : Uses (DI)
-         SmartBinDevice --> Location : Contains
-         SmartBinDevice ..> SmartBinPayload : Serializes
+    class AwsMqttAdapter {
+        -connection: MqttClientConnection
+        +publish(msg: Message) void
+        +subscribe(topic: String, callback: Consumer~Message~) void
+    }
 
-         MessagePublisher <|.. AbstractMqttPublisher : Implements
-         AbstractMqttPublisher <|-- AwsMqttPublisher : Extends
-         AbstractMqttPublisher <|-- GenericMqttPublisher : Extends
+    class HttpRestClient {
+        -baseUrl: String
+        +get(path: String, responseType: Class) T
+        +put(path: String, body: Object, responseType: Class) R
+    }
 
-         TrafficService <|.. RestTrafficService : Implements
-        RestTrafficService --> HttpRestClient : Uses (Delegation)
+    class RestTrafficAdapter {
+        -restClient: HttpRestClient
+        +getAllRoads() List~Road~
+    }
 
-        App --> MessagePublisher : Initializes (AwsMqttPublisher)
-        App --> TrafficService : Initializes (RestTrafficService)
-        App --> SensorDevice : Orchestrates
+    class RestVehicleNavigationAdapter {
+        -restClient: HttpRestClient
+        +setRoute(vehicleId: String, route: Route) void
+    }
+
+    class App {
+        %% Main application orchestrator
+    }
+
+    %% ==========================================
+    %% Relationships
+    %% ==========================================
+
+    %% Inheritance & Implementation
+    SensorDevice <|-- SmartBinDevice : Extends
+    MessagePublisher <|.. AwsMqttAdapter : Implements
+    MessageSubscriber <|.. AwsMqttAdapter : Implements
+    AbstractMqttAdapter <|-- AwsMqttAdapter : Extends
+    TrafficService <|.. RestTrafficAdapter : Implements
+    VehicleNavigationPort <|.. RestVehicleNavigationAdapter : Implements
+
+    %% Composition & Aggregation
+    SmartBinDevice --> RoadLocation : Contains
+    GarbageTruck --> RoadLocation : Contains
+    GarbageTruck --> TrafficMessagePayload : Creates
+    RestTrafficAdapter --> HttpRestClient : Uses
+    RestVehicleNavigationAdapter --> HttpRestClient : Uses
+
+    %% Dependency Injection / Orchestration
+    SmartBinDevice --> MessagePublisher : Uses
+    GarbageTruck --> MessagePublisher : Uses
+    RouteCollectionUseCase --> TrafficService : Uses
+    RouteCollectionUseCase --> VehicleNavigationPort : Uses
+    RouteCollectionUseCase --> MessageSubscriber : Uses
+
+    %% Setup
+    App --> AwsMqttAdapter : Initializes
+    App --> RestTrafficAdapter : Initializes
+    App --> RestVehicleNavigationAdapter : Initializes
+    App --> RouteCollectionUseCase : Orchestrates

@@ -4,7 +4,7 @@ import com.iot.ports.out.TrafficService;
 import com.iot.domain.Road;
 import com.iot.domain.RoadSegment;
 import com.iot.domain.Vehicle;
-import com.iot.infrastructure.rest.RestTrafficService;
+import com.iot.infrastructure.rest.RestTrafficAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -29,9 +29,9 @@ public class TrafficServiceTest {
 
     @BeforeEach
     public void setUp() {
-        // In a real scenario, we would mock the HttpClient inside RestTrafficService
+        // In a real scenario, we would mock the HttpClient inside RestTrafficAdapter
         // For this exercise, we initialize it with a dummy URL
-        trafficService = new RestTrafficService("http://localhost:8080");
+        trafficService = new RestTrafficAdapter("http://localhost:8080");
     }
 
     @Test

@@ -1,25 +1,19 @@
 package com.iot.infrastructure.rest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.iot.ports.out.TrafficService;
 import com.iot.domain.Road;
 import com.iot.domain.RoadSegment;
 import com.iot.domain.Vehicle;
-
+import com.iot.ports.out.TrafficService;
 import java.util.List;
 
 /**
- * REST implementation of the TrafficService.
- * Connects to the Smart Traffic server via HTTP.
+ * Adapter for the Traffic Service using REST.
  */
-public class RestTrafficService implements TrafficService {
+public class RestTrafficAdapter implements TrafficService {
     private final HttpRestClient restClient;
 
-    /**
-     * Constructs the REST service with a base URL.
-     * @param baseUrl The base URL of the Smart Traffic server (e.g., "http://ttmi008.iot.upv.es:8182").
-     */
-    public RestTrafficService(String baseUrl) {
+    public RestTrafficAdapter(String baseUrl) {
         this.restClient = new HttpRestClient(baseUrl);
     }
 

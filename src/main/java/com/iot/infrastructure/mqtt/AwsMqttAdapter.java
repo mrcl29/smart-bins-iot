@@ -9,18 +9,19 @@ import software.amazon.awssdk.iot.AwsIotMqttConnectionBuilder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 /**
- * AWS IoT specific implementation using AWS IoT Device SDK v2.
+ * AWS IoT specific implementation of the MQTT adapter.
  */
-public class AwsMqttPublisher extends AbstractMqttPublisher {
+public class AwsMqttAdapter extends AbstractMqttAdapter {
     private final String certificatePath;
     private final String privateKeyPath;
     private final String caPath;
     private MqttClientConnection connection;
 
-    public AwsMqttPublisher(String endpoint, String certPath, String keyPath, String caPath) {
-        super(endpoint, "smart-traffic-publisher-" + System.currentTimeMillis());
+    public AwsMqttAdapter(String endpoint, String certPath, String keyPath, String caPath) {
+        super(endpoint, "smart-traffic-adapter-" + System.currentTimeMillis());
         this.certificatePath = certPath;
         this.privateKeyPath = keyPath;
         this.caPath = caPath;
@@ -28,12 +29,6 @@ public class AwsMqttPublisher extends AbstractMqttPublisher {
     }
 
     private void authenticateAndConnect() {
-        System.out.println("Connecting to AWS IoT with:");
-        System.out.println(" - Endpoint: " + brokerUrl);
-        System.out.println(" - Cert: " + certificatePath);
-        System.out.println(" - Key: " + privateKeyPath);
-        System.out.println(" - CA: " + caPath);
-
         try (AwsIotMqttConnectionBuilder builder = AwsIotMqttConnectionBuilder.newMtlsBuilderFromPath(
                 certificatePath, privateKeyPath)) {
             
@@ -50,14 +45,9 @@ public class AwsMqttPublisher extends AbstractMqttPublisher {
             
             if (connected.get()) {
                 System.out.println("Successfully connected to AWS IoT Core: " + this.brokerUrl);
-            } else {
-                System.err.println("Failed to connect to AWS IoT Core.");
             }
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error during AWS IoT connection: " + e.getMessage());
-            Thread.currentThread().interrupt();
         } catch (Exception e) {
-            System.err.println("Unexpected error connecting to AWS IoT: " + e.getMessage());
+            System.err.println("Error during AWS IoT connection: " + e.getMessage());
         }
     }
 
@@ -75,9 +65,20 @@ public class AwsMqttPublisher extends AbstractMqttPublisher {
                 message.getPayload().getBytes(StandardCharsets.UTF_8),
                 QualityOfService.AT_LEAST_ONCE
         );
+        connection.publish(mqttMessage).get();
+    }
 
-        CompletableFuture<Integer> published = connection.publish(mqttMessage);
-        published.get(); // Wait for the publish to complete
+    @Override
+    protected void performSubscribe(String topic, Consumer<Message> callback) throws Exception {
+        connection.subscribe(topic, QualityOfService.AT_LEAST_ONCE, (mqttMessage) -> {
+            String payload = new String(mqttMessage.getPayload(), StandardCharsets.UTF_8);
+            callback.accept(new Message(mqttMessage.getTopic(), payload));
+        }).get();
+    }
+
+    @Override
+    protected void performUnsubscribe(String topic) throws Exception {
+        connection.unsubscribe(topic).get();
     }
 
     @Override

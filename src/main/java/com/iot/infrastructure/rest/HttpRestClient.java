@@ -55,6 +55,18 @@ public class HttpRestClient {
         return deserialize(response.body(), responseType);
     }
 
+    public <T, R> R put(String path, T requestBody, Class<R> responseType) throws Exception {
+        String jsonPayload = objectMapper.writeValueAsString(requestBody);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + (path.startsWith("/") ? path : "/" + path)))
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        return deserialize(response.body(), responseType);
+    }
+
     private <T> T deserialize(String body, Class<T> type) throws Exception {
         if (body == null || body.isBlank() || body.equals("null")) {
             return null;

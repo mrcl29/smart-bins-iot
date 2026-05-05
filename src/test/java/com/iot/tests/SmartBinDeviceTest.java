@@ -2,7 +2,7 @@ package com.iot.tests;
 
 import com.iot.domain.Message;
 import com.iot.ports.out.MessagePublisher;
-import com.iot.domain.Location;
+import com.iot.domain.RoadLocation;
 import com.iot.domain.SmartBinDevice;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,7 +26,7 @@ public class SmartBinDeviceTest {
     @Test
     public void testUpdateFillLevelBelowThreshold() {
         MockPublisher mockPublisher = new MockPublisher();
-        Location loc = new Location("Main St", 40.0, -0.1);
+        RoadLocation loc = new RoadLocation("R1S1", 10.0);
         SmartBinDevice bin = new SmartBinDevice("bin-1", mockPublisher, 80.0, "ORGANIC", loc);
 
         bin.updateFillLevel(50.0);
@@ -38,7 +38,7 @@ public class SmartBinDeviceTest {
     @Test
     public void testUpdateFillLevelAboveThresholdSendsAlert() {
         MockPublisher mockPublisher = new MockPublisher();
-        Location loc = new Location("Second St", 41.0, -0.2);
+        RoadLocation loc = new RoadLocation("R2S1", 50.0);
         SmartBinDevice bin = new SmartBinDevice("bin-1", mockPublisher, 80.0, "PLASTIC", loc);
 
         bin.updateFillLevel(85.0);
@@ -60,6 +60,6 @@ public class SmartBinDeviceTest {
 
         assertTrue(alertMsg.getPayload().contains("\"status\":\"CRITICAL\""));
         assertTrue(alertMsg.getPayload().contains("\"wasteType\":\"PLASTIC\""));
-        assertTrue(alertMsg.getPayload().contains("\"street\":\"Second St\""));
+        assertTrue(alertMsg.getPayload().contains("\"roadSegmentId\":\"R2S1\""));
     }
 }

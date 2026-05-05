@@ -13,10 +13,10 @@ public class SmartBinDevice extends SensorDevice {
     
     private final double alertThreshold;
     private final String wasteType;
-    private final Location location;
+    private RoadLocation location;
 
     public SmartBinDevice(String deviceId, MessagePublisher publisher, double alertThreshold, 
-                          String wasteType, Location location) {
+                          String wasteType, RoadLocation location) {
         super(deviceId, publisher);
         this.alertThreshold = alertThreshold;
         this.wasteType = wasteType;
@@ -34,6 +34,14 @@ public class SmartBinDevice extends SensorDevice {
         if (level >= alertThreshold) {
             publishMessage(level, "CRITICAL", "alerts/bins/");
         }
+    }
+
+    public void updateLocation(RoadLocation newLocation) {
+        this.location = newLocation;
+    }
+
+    public RoadLocation getRoadLocation() {
+        return location;
     }
 
     private void publishMessage(double level, String status, String topicPrefix) {
