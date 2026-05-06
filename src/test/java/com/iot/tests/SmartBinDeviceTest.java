@@ -33,19 +33,20 @@ public class SmartBinDeviceTest {
     public void testUpdateFillLevelPublishesToCorrectTopic() {
         MockPublisher mockPublisher = new MockPublisher();
         MockSubscriber mockSubscriber = new MockSubscriber();
-        RoadLocation loc = new RoadLocation("R1s1", 10.0);
+        RoadLocation loc = new RoadLocation("R1S1", 10.0);
         SmartBinDevice bin = new SmartBinDevice("bin-1", mockPublisher, mockSubscriber, 80.0, "ORGANIC", loc);
 
         // Constructor already sends 1 BIN_IN message
         assertEquals(1, mockPublisher.publishedMessages.size());
-        assertTrue(mockPublisher.publishedMessages.get(0).getTopic().contains("R1s1/bins"));
+        assertTrue(mockPublisher.publishedMessages.get(0).getTopic().contains("R1S1/bins"));
+        assertTrue(mockPublisher.publishedMessages.get(0).getTopic().startsWith(SmartBinDevice.TOPIC_BASE));
 
         bin.updateFillLevel(50.0);
 
         // Should have 2 messages now: 1 BIN_IN and 1 sensor status
         assertEquals(2, mockPublisher.publishedMessages.size());
-        assertEquals("bins/sensors", mockPublisher.publishedMessages.get(1).getTopic());
-        assertTrue(mockPublisher.publishedMessages.get(1).getPayload().contains("\"level\":\"50.0%\""));
+        assertTrue(mockPublisher.publishedMessages.get(1).getTopic().contains("bins/sensors"));
+        assertTrue(mockPublisher.publishedMessages.get(1).getPayload().contains("\"level\":50"));
         assertTrue(mockPublisher.publishedMessages.get(1).getPayload().contains("\"toClean\":false"));
     }
 
@@ -53,17 +54,17 @@ public class SmartBinDeviceTest {
     public void testUpdateLocationPublishesOutAndIn() {
         MockPublisher mockPublisher = new MockPublisher();
         MockSubscriber mockSubscriber = new MockSubscriber();
-        RoadLocation loc1 = new RoadLocation("R1s1", 10.0);
+        RoadLocation loc1 = new RoadLocation("R1S1", 10.0);
         SmartBinDevice bin = new SmartBinDevice("bin-1", mockPublisher, mockSubscriber, 80.0, "ORGANIC", loc1);
 
-        bin.updateLocation(new RoadLocation("R1s2", 5.0));
+        bin.updateLocation(new RoadLocation("R1S2", 5.0));
 
         // 1 (Initial BIN_IN) + 1 (BIN_OUT) + 1 (New BIN_IN)
         assertEquals(3, mockPublisher.publishedMessages.size());
         assertTrue(mockPublisher.publishedMessages.get(1).getPayload().contains("\"action\":\"BIN_OUT\""));
-        assertTrue(mockPublisher.publishedMessages.get(1).getTopic().contains("R1s1/bins"));
+        assertTrue(mockPublisher.publishedMessages.get(1).getTopic().contains("R1S1/bins"));
         
         assertTrue(mockPublisher.publishedMessages.get(2).getPayload().contains("\"action\":\"BIN_IN\""));
-        assertTrue(mockPublisher.publishedMessages.get(2).getTopic().contains("R1s2/bins"));
+        assertTrue(mockPublisher.publishedMessages.get(2).getTopic().contains("R1S2/bins"));
     }
 }

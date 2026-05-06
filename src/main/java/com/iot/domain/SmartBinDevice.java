@@ -13,6 +13,7 @@ import java.util.Map;
  */
 public class SmartBinDevice extends SensorDevice {
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    public static final String TOPIC_BASE = "es/upv/pros/tatami/smartcities/traffic/PTPaterna";
 
     private final double alertThreshold;
     private final String wasteType;
@@ -37,9 +38,16 @@ public class SmartBinDevice extends SensorDevice {
             return;
         try {
             // Bins listen to road info to make movement decisions (simulated)
-            String topic = "road/" + location.getRoadSegmentId() + "/info";
+            String topic = TOPIC_BASE + "/road/" + location.getRoadSegmentId() + "/info";
             smartTrafficSubscriber.subscribe(topic, (msg) -> {
                 System.out.println("[Bin-Traffic] " + getDeviceId() + " received road info: " + msg.getPayload());
+                // Reaction to accident: move to another road
+                if (msg.getPayload().contains("ROAD_INCIDENT") || msg.getPayload().contains("ACCIDENT")) {
+                    System.out.println("[Bin-Action] " + getDeviceId() + " detected incident! Moving to safety.");
+                    String currentSegment = location.getRoadSegmentId();
+                    String nextSegment = currentSegment.equals("R3S1") ? "R1S1" : (currentSegment.equals("R1S1") ? "R2S1" : "R1S1");
+                    updateLocation(new RoadLocation(nextSegment, location.getKilometricPoint()));
+                }
             });
         } catch (Exception e) {
             System.err.println("Error setting up bin subscriptions: " + e.getMessage());
@@ -51,17 +59,17 @@ public class SmartBinDevice extends SensorDevice {
      */
     public void updateFillLevel(double level) {
         try {
+            Map<String, Object> msgPayload = new HashMap<>();
+            msgPayload.put("deviceId", getDeviceId());
+            msgPayload.put("road", location.getRoadSegmentId().split("S")[0]);
+            msgPayload.put("road-segment", location.getRoadSegmentId());
+            msgPayload.put("kp", (int)location.getKilometricPoint());
+            msgPayload.put("level", (int)level);
+            msgPayload.put("toClean", level >= alertThreshold);
+            msgPayload.put("type", wasteType);
 
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("deviceId", getDeviceId());
-            payload.put("road", location.getRoadSegmentId());
-            payload.put("kp", location.getKilometricPoint());
-            payload.put("level", level + "%");
-            payload.put("toClean", level >= alertThreshold);
-            payload.put("type", wasteType);
-
-            String jsonPayload = objectMapper.writeValueAsString(payload);
-            Message msg = new Message("bins/sensors", jsonPayload);
+            String jsonPayload = buildPayload("BIN_SENSOR", msgPayload);
+            Message msg = new Message(TOPIC_BASE + "/bins/sensors", jsonPayload);
             getPublisher().publish(msg);
 
             System.out.println("[AWS] Status sent to bins/sensors for " + getDeviceId());
@@ -74,21 +82,24 @@ public class SmartBinDevice extends SensorDevice {
         publishPresence("BIN_OUT");
         this.location = newLocation;
         publishPresence("BIN_IN");
+        // Re-setup subscriptions for the new road segment if necessary
+        // In a real system we would unsubscribe from old and subscribe to new
     }
 
     private void publishPresence(String action) {
         if (location == null)
             return;
         try {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("deviceId", getDeviceId());
-            payload.put("action", action);
-            payload.put("type", wasteType);
-            payload.put("kp", location.getKilometricPoint());
-            payload.put("road", location.getRoadSegmentId());
+            Map<String, Object> msgPayload = new HashMap<>();
+            msgPayload.put("deviceId", getDeviceId());
+            msgPayload.put("action", action);
+            msgPayload.put("type", wasteType);
+            msgPayload.put("kp", (int)location.getKilometricPoint());
+            msgPayload.put("road", location.getRoadSegmentId().split("S")[0]);
+            msgPayload.put("road-segment", location.getRoadSegmentId());
 
-            String jsonPayload = objectMapper.writeValueAsString(payload);
-            String topic = "road/" + location.getRoadSegmentId() + "/bins";
+            String jsonPayload = buildPayload("BIN_POSITION", msgPayload);
+            String topic = TOPIC_BASE + "/road/" + location.getRoadSegmentId() + "/bins";
 
             Message msg = new Message(topic, jsonPayload);
             getPublisher().publish(msg);
@@ -97,6 +108,16 @@ public class SmartBinDevice extends SensorDevice {
         } catch (Exception e) {
             System.err.println("Error publishing bin presence: " + e.getMessage());
         }
+    }
+
+    private String buildPayload(String type, Map<String, Object> msgPayload) throws Exception {
+        Map<String, Object> root = new HashMap<>();
+        long ts = System.currentTimeMillis();
+        root.put("id", "MSG_" + ts);
+        root.put("type", type);
+        root.put("timestamp", ts);
+        root.put("msg", msgPayload);
+        return objectMapper.writeValueAsString(root);
     }
 
     public RoadLocation getRoadLocation() {

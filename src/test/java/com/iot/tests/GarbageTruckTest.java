@@ -50,14 +50,14 @@ public class GarbageTruckTest {
         MockSubscriber mockTrafficSubscriber = new MockSubscriber();
         
         GarbageTruck truck = new GarbageTruck("Truck-1", mockTrafficPublisher, mockAwsSubscriber, mockTrafficSubscriber);
-        RoadLocation loc = new RoadLocation("R1s1", 0.0);
+        RoadLocation loc = new RoadLocation("R1S1", 0.0);
 
         truck.updateLocation(loc);
 
         // Should have 1 VEHICLE_IN message
         assertEquals(1, mockTrafficPublisher.publishedMessages.size());
         Message msg = mockTrafficPublisher.publishedMessages.get(0);
-        assertTrue(msg.getTopic().equals("road/R1s1/traffic"));
+        assertTrue(msg.getTopic().contains(GarbageTruck.TOPIC_BASE + "/road/R1S1/traffic"));
         assertTrue(msg.getPayload().contains("\"action\":\"VEHICLE_IN\""));
     }
 }

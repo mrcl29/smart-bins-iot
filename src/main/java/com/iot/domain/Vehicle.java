@@ -14,6 +14,7 @@ import java.util.Map;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Vehicle {
+    public static final String TOPIC_BASE = "es/upv/pros/tatami/smartcities/traffic/PTPaterna";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private String id;
@@ -50,23 +51,24 @@ public class Vehicle {
     }
 
     public void reportAccident(String segmentId, double kp) {
-        publishAlert("accident", segmentId, kp);
+        publishAlert("TRAFFIC_ACCIDENT", segmentId, kp);
     }
 
     protected void publishTrafficEvent(String action, String segmentId, double kp) {
         if (smartTrafficPublisher == null) return;
         try {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("action", action);
-            payload.put("vehicleId", id);
-            payload.put("road", segmentId);
-            payload.put("kp", kp);
+            Map<String, Object> msgPayload = new HashMap<>();
+            msgPayload.put("action", action);
+            msgPayload.put("vehicle-id", id);
+            msgPayload.put("road", segmentId.split("S")[0]); // Example: R1S1 -> R1
+            msgPayload.put("road-segment", segmentId);
+            msgPayload.put("position", (int)kp);
             if (characterization != null) {
-                payload.put("role", characterization.getRole());
+                msgPayload.put("role", characterization.getRole());
             }
 
-            String jsonPayload = objectMapper.writeValueAsString(payload);
-            String topic = "road/" + segmentId + "/traffic";
+            String jsonPayload = buildPayload("TRAFFIC", msgPayload);
+            String topic = TOPIC_BASE + "/road/" + segmentId + "/traffic";
             
             smartTrafficPublisher.publish(new Message(topic, jsonPayload));
             System.out.println("[Traffic] " + action + " sent for " + id + " to " + topic);
@@ -75,23 +77,39 @@ public class Vehicle {
         }
     }
 
-    protected void publishAlert(String event, String segmentId, double kp) {
+    protected void publishAlert(String incidentType, String segmentId, double kp) {
         if (smartTrafficPublisher == null) return;
         try {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("event", event);
-            payload.put("road", segmentId);
-            payload.put("kp", kp);
-            payload.put("vehicleId", id);
+            Map<String, Object> msgPayload = new HashMap<>();
+            msgPayload.put("rt", "traffic::alert");
+            msgPayload.put("incident-type", incidentType);
+            msgPayload.put("id", "INC_" + System.currentTimeMillis());
+            msgPayload.put("road", segmentId.split("S")[0]);
+            msgPayload.put("road-segment", segmentId);
+            msgPayload.put("starting-position", (int)kp);
+            msgPayload.put("ending-position", (int)kp);
+            msgPayload.put("description", "Vehicle Incident reported by " + id);
+            msgPayload.put("status", "Active");
+            msgPayload.put("link", "/incident/" + msgPayload.get("id"));
 
-            String jsonPayload = objectMapper.writeValueAsString(payload);
-            String topic = "road/" + segmentId + "/alerts";
+            String jsonPayload = buildPayload("ROAD_INCIDENT", msgPayload);
+            String topic = TOPIC_BASE + "/road/" + segmentId + "/alerts";
             
             smartTrafficPublisher.publish(new Message(topic, jsonPayload));
-            System.out.println("[Traffic] ALERT (" + event + ") sent for " + id + " to " + topic);
+            System.out.println("[Traffic] ALERT (" + incidentType + ") sent for " + id + " to " + topic);
         } catch (Exception e) {
             System.err.println("Error publishing alert: " + e.getMessage());
         }
+    }
+
+    private String buildPayload(String type, Map<String, Object> msgPayload) throws Exception {
+        Map<String, Object> root = new HashMap<>();
+        long ts = System.currentTimeMillis();
+        root.put("id", "MSG_" + ts);
+        root.put("type", type);
+        root.put("timestamp", ts);
+        root.put("msg", msgPayload);
+        return objectMapper.writeValueAsString(root);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

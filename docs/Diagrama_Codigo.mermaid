@@ -34,17 +34,18 @@ classDiagram
     %% Domain Entities & Use Cases
     %% ==========================================
     class Vehicle {
+        +TOPIC_BASE: String
         +id: String
-        +speed: int
         +characterization: Characterization
+        +updateLocation(newLoc: RoadLocation) void
+        +reportAccident(segment: String, kp: double) void
+        #publishTrafficEvent(action: String, segment: String, kp: double) void
+        #publishAlert(type: String, segment: String, kp: double) void
     }
 
     class GarbageTruck {
-        -currentLocation: RoadLocation
-        -publisher: MessagePublisher
-        +updateLocation(newLocation: RoadLocation) void
         +collectWaste(binId: String) void
-        -publishTrafficEvent(action: String) void
+        +subscribeToRoad(segmentId: String) void
     }
 
     class SmartBinDevice {
@@ -52,8 +53,9 @@ classDiagram
         -wasteType: String
         -location: RoadLocation
         +updateFillLevel(level: double) void
-        +updateLocation(newLocation: RoadLocation) void
-        -publishMessage(level: double, status: String, topic: String) void
+        +updateLocation(newLoc: RoadLocation) void
+        -publishPresence(action: String) void
+        -setupSubscriptions() void
     }
 
     class Route {
@@ -61,17 +63,11 @@ classDiagram
         +addSegment(start: RoutePoint, end: RoutePoint) void
     }
 
-    class RoutePoint {
-        +road: String
-        +point: double
-    }
-
     class RouteCollectionUseCase {
         -trafficService: TrafficService
         -navigationPort: VehicleNavigationPort
         -subscriber: MessageSubscriber
         +calculateAndSetRoute(truckId: String, bins: List~SmartBinDevice~) void
-        +handleTrafficIncident(incident: TrafficMessagePayload) void
     }
 
     %% ==========================================
@@ -79,23 +75,24 @@ classDiagram
     %% ==========================================
     class AwsMqttAdapter {
         -connection: MqttClientConnection
+    }
+
+    class GenericMqttPublisher {
+        -subscribers: Map~String, List~Consumer~~
         +publish(msg: Message) void
-        +subscribe(topic: String, callback: Consumer~Message~) void
+        +subscribe(topic: String, callback: Consumer) void
+        -matches(pattern: String, topic: String) boolean
     }
 
     class RestTrafficAdapter {
         -restClient: HttpRestClient
-        +getSegment(id: String) RoadSegment
     }
 
     class RestVehicleNavigationAdapter {
         -restClient: HttpRestClient
-        +registerVehicle(vehicle: Vehicle) void
-        +setRoute(vehicleId: String, route: Route) void
     }
 
     class MockTrafficServer {
-        -server: HttpServer
         +start() void
         +stop() void
     }
@@ -107,15 +104,20 @@ classDiagram
     Vehicle <|-- GarbageTruck : Extends
     SensorDevice <|-- SmartBinDevice : Extends
     
-    MessagePublisher <|.. AwsMqttAdapter : Implements
-    MessageSubscriber <|.. AwsMqttAdapter : Implements
+    MessagePublisher <|.. AbstractMqttAdapter : Implements
+    MessageSubscriber <|.. AbstractMqttAdapter : Implements
+    AbstractMqttAdapter <|-- AwsMqttAdapter : Extends
+    AbstractMqttAdapter <|-- GenericMqttPublisher : Extends
+    
     TrafficService <|.. RestTrafficAdapter : Implements
     VehicleNavigationPort <|.. RestVehicleNavigationAdapter : Implements
 
     App --> MockTrafficServer : Manages Fallback
-    App --> AwsMqttAdapter : Initializes
+    App --> GenericMqttPublisher : Initializes (Simulation)
     App --> RouteCollectionUseCase : Orchestrates
     
-    Route --> RoutePoint : Uses
-    GarbageTruck --> MessagePublisher : Uses
-    SmartBinDevice --> MessagePublisher : Uses
+    RouteCollectionUseCase --> TrafficService : Uses
+    RouteCollectionUseCase --> VehicleNavigationPort : Uses
+    
+    GarbageTruck --> MessageSubscriber : Listens to AWS/Traffic
+    SmartBinDevice --> MessageSubscriber : Listens to Road Info

@@ -1,10 +1,11 @@
 package com.iot.application;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iot.domain.RoadLocation;
 import com.iot.domain.SmartBinDevice;
 import com.iot.domain.Vehicle;
 import com.iot.domain.GarbageTruck;
-import com.iot.infrastructure.mqtt.AwsMqttAdapter;
+import com.iot.domain.Message;
 import com.iot.infrastructure.mqtt.GenericMqttPublisher;
 import com.iot.infrastructure.rest.MockTrafficServer;
 import com.iot.infrastructure.rest.RestTrafficAdapter;
@@ -13,86 +14,139 @@ import com.iot.ports.out.TrafficService;
 import com.iot.ports.out.VehicleNavigationPort;
 import io.github.cdimascio.dotenv.Dotenv;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class App {
     public static void main(String[] args) {
         Dotenv dotenv = Dotenv.load();
 
-        String awsEndpoint = dotenv.get("AWS_IOT_ENDPOINT");
-        String certPath = dotenv.get("AWS_CERT_PATH");
-        String keyPath = dotenv.get("AWS_KEY_PATH");
-        String caPath = dotenv.get("AWS_CA_PATH");
-        String trafficApiUrl = dotenv.get("TRAFFIC_API_URL", "http://ttmi008.iot.upv.es:8182");
-        String trafficMqttHost = dotenv.get("TRAFFIC_MQTT_HOST", "ttmi008.iot.upv.es");
+        String awsEndpoint = dotenv.get("AWS_IOT_ENDPOINT", "simulated-aws");
+        String trafficApiUrl = dotenv.get("TRAFFIC_API_URL", "http://localhost:8182");
+        String trafficMqttHost = dotenv.get("TRAFFIC_MQTT_HOST", "tcp://tambori.dsic.upv.es:10083");
 
         MockTrafficServer mockServer = null;
 
-        // Try to connect to the real server, fallback to mock if unreachable
+        // Start mock server for navigation API
+        System.out.println("Starting local Mock Server for REST API...");
+        int mockPort = 8182;
+        mockServer = new MockTrafficServer(mockPort);
         try {
-            TrafficService testService = new RestTrafficAdapter(trafficApiUrl);
-            testService.getSegment("R1s1");
-            System.out.println("Connected to remote Traffic Server: " + trafficApiUrl);
-        } catch (Exception e) {
-            System.err.println("Remote server unreachable. Starting local Mock Server...");
-            int mockPort = 8182;
-            mockServer = new MockTrafficServer(mockPort);
-            try {
-                mockServer.start();
-                trafficApiUrl = "http://localhost:" + mockPort;
-            } catch (Exception ioException) {
-                System.err.println("Failed to start Mock Server: " + ioException.getMessage());
-            }
+            mockServer.start();
+            trafficApiUrl = "http://localhost:" + mockPort;
+        } catch (Exception ioException) {
+            System.err.println("Failed to start Mock Server: " + ioException.getMessage());
         }
 
-        // Initialize Adapters for both brokers
-        try (AwsMqttAdapter awsAdapter = new AwsMqttAdapter(awsEndpoint, certPath, keyPath, caPath);
-                GenericMqttPublisher trafficMqtt = new GenericMqttPublisher(trafficMqttHost, "truck-01-client")) {
+        // Initialize Adapters. We use GenericMqttPublisher for both to simulate communication.
+        try (GenericMqttPublisher awsAdapter = new GenericMqttPublisher(awsEndpoint, "aws-client");
+             GenericMqttPublisher trafficMqtt = new GenericMqttPublisher(trafficMqttHost, "traffic-client")) {
 
             TrafficService trafficService = new RestTrafficAdapter(trafficApiUrl);
             VehicleNavigationPort navigationPort = new RestVehicleNavigationAdapter(trafficApiUrl);
 
-            System.out.println("\n--- Initializing Devices ---");
+            System.out.println("\n--- [SIMULATION START] ---");
 
-            // 1. Smart Bin (AWS focus)
-            RoadLocation binLoc = new RoadLocation("R1s1", 10.0);
-            SmartBinDevice bin1 = new SmartBinDevice("Bin_01", awsAdapter, trafficMqtt, 80.0, "ORGANIC", binLoc);
+            // --- PHASE 1: Active Road Simulation Logic ---
+            // Simulate Roads as active objects that propagate alerts to info topic
+            trafficMqtt.subscribe(Vehicle.TOPIC_BASE + "/road/+/alerts", (msg) -> {
+                try {
+                    String topic = msg.getTopic();
+                    String[] parts = topic.split("/");
+                    String segment = parts[parts.length - 2];
+                    
+                    System.out.println("[Road-Agent] Incident detected on " + segment + ". Updating info topic...");
+                    
+                    Map<String, Object> incidentMsg = new HashMap<>();
+                    incidentMsg.put("rt", "traffic::incident");
+                    incidentMsg.put("incident-type", "INCIDENT");
+                    incidentMsg.put("id", "ROAD_INC_" + System.currentTimeMillis());
+                    incidentMsg.put("road", segment.split("S")[0]);
+                    incidentMsg.put("road-segment", segment);
+                    incidentMsg.put("description", "Accident confirmed on segment");
+                    incidentMsg.put("status", "Active");
 
-            // 2. Garbage Truck
-            GarbageTruck truck = new GarbageTruck("Truck_01", trafficMqtt, awsAdapter, trafficMqtt);
+                    Map<String, Object> wrapper = new HashMap<>();
+                    long ts = System.currentTimeMillis();
+                    wrapper.put("id", "MSG_" + ts);
+                    wrapper.put("type", "ROAD_INCIDENT");
+                    wrapper.put("timestamp", ts);
+                    wrapper.put("msg", incidentMsg);
 
-            System.out.println("Registering truck in Smart Traffic system...");
-            navigationPort.registerVehicle(truck);
+                    trafficMqtt.publish(new Message(Vehicle.TOPIC_BASE + "/road/" + segment + "/info", 
+                        new ObjectMapper().writeValueAsString(wrapper)));
+                } catch (Exception e) { e.printStackTrace(); }
+            });
 
-            // 3. Regular Vehicle
-            Vehicle car = new Vehicle("Car_01", trafficMqtt);
-            navigationPort.registerVehicle(car);
+            // --- PHASE 2: Initializing Devices ---
+            System.out.println("\n1. Initializing Vehicles and Trucks...");
+            Vehicle car1 = new Vehicle("Car_1", trafficMqtt);
+            Vehicle car2 = new Vehicle("Car_2", trafficMqtt);
+            GarbageTruck truck1 = new GarbageTruck("Truck_1", trafficMqtt, awsAdapter, trafficMqtt);
+            GarbageTruck truck2 = new GarbageTruck("Truck_2", trafficMqtt, awsAdapter, trafficMqtt);
 
-            System.out.println("\n--- Simulating Interactions ---");
+            navigationPort.registerVehicle(car1);
+            navigationPort.registerVehicle(car2);
+            navigationPort.registerVehicle(truck1);
+            navigationPort.registerVehicle(truck2);
 
-            // Truck enters segment R1s1
-            truck.updateLocation(new RoadLocation("R1s1", 0.0));
-            truck.subscribeToRoad("R1s1");
+            // Set initial locations
+            car1.updateLocation(new RoadLocation("R1S1", 100));
+            car2.updateLocation(new RoadLocation("R2S1", 200));
+            truck1.updateLocation(new RoadLocation("R3S1", 50));
+            truck2.updateLocation(new RoadLocation("R1S1", 300));
+            
+            truck1.subscribeToRoad("R1S1");
+            truck1.subscribeToRoad("R2S1");
+            truck1.subscribeToRoad("R3S1");
 
-            // Car reports an accident
-            car.updateLocation(new RoadLocation("R1s1", 50.0));
-            car.reportAccident("R1s1", 55.0);
+            System.out.println("\n2. Initializing 9 Smart Bins across 3 roads...");
+            List<SmartBinDevice> bins = new ArrayList<>();
+            String[] types = {"ORGANIC", "PLASTIC", "GLASS"};
+            String[] roads = {"R1S1", "R2S1", "R3S1"};
 
-            // Bin reaches high level
-            System.out.println("\n--- Waste Collection Trigger ---");
-            bin1.updateFillLevel(95.0);
+            for (int i = 0; i < 9; i++) {
+                String road = roads[i % 3];
+                String type = types[i / 3];
+                RoadLocation loc = new RoadLocation(road, 50 * (i + 1));
+                bins.add(new SmartBinDevice("Bin_" + (i + 1), awsAdapter, trafficMqtt, 80.0, type, loc));
+            }
 
-            // Truck hears it via subscription to AWS and routes
-            RouteCollectionUseCase routeUseCase = new RouteCollectionUseCase(trafficService, navigationPort,
-                    trafficMqtt);
-            routeUseCase.calculateAndSetRoute(truck.getId(), Arrays.asList(bin1));
+            // --- PHASE 3: Movements and Fill Levels ---
+            System.out.println("\n3. Simulating vehicle movements...");
+            car1.updateLocation(new RoadLocation("R2S1", 150));
+            truck2.updateLocation(new RoadLocation("R3S1", 250));
 
-            // Simulating movement of bin
-            bin1.updateLocation(new RoadLocation("R1s2", 5.0));
+            System.out.println("\n4. Bins reporting high fill levels...");
+            bins.get(0).updateFillLevel(95.0); // Bin_1 (ORGANIC, R1S1)
+            bins.get(4).updateFillLevel(98.0); // Bin_5 (PLASTIC, R2S1)
 
-            Thread.sleep(2000); // Allow some time for async messages (simulated)
+            // --- PHASE 4: Accident and Migration ---
+            System.out.println("\n5. Reporting an accident on R3S1...");
+            car2.reportAccident("R3S1", 200);
 
-            System.out.println("\n--- Simulation Finished ---");
+            // Wait a bit for Bins to react to the accident info
+            Thread.sleep(2000);
+
+            // --- PHASE 5: Routing and Collection ---
+            System.out.println("\n6. Truck_1 calculating collection route...");
+            RouteCollectionUseCase routeUseCase = new RouteCollectionUseCase(trafficService, navigationPort, trafficMqtt);
+            
+            // Only collect full bins (Bin_1 and Bin_5)
+            List<SmartBinDevice> fullBins = Arrays.asList(bins.get(0), bins.get(4));
+            routeUseCase.calculateAndSetRoute(truck1.getId(), fullBins);
+
+            System.out.println("\n7. Performing collection...");
+            for (SmartBinDevice bin : fullBins) {
+                truck1.updateLocation(bin.getRoadLocation());
+                truck1.collectWaste(bin.getDeviceId());
+                bin.updateFillLevel(0.0); // Report bin as empty
+            }
+
+            System.out.println("\n--- [SIMULATION FINISHED] ---");
 
         } catch (Exception e) {
             System.err.println("Application Error: " + e.getMessage());

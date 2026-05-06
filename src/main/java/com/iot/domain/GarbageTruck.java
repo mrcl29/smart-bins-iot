@@ -28,7 +28,7 @@ public class GarbageTruck extends Vehicle {
     private void setupSubscriptions() {
         try {
             // Subscribe to AWS Bins topics
-            awsSubscriber.subscribe("bins/sensors", (msg) -> {
+            awsSubscriber.subscribe(Vehicle.TOPIC_BASE + "/bins/sensors", (msg) -> {
                 System.out.println("[Truck-AWS] Received bin status update: " + msg.getPayload());
             });
 
@@ -43,12 +43,12 @@ public class GarbageTruck extends Vehicle {
     public void subscribeToRoad(String segmentId) {
         try {
             // AWS: Bin locations in this road
-            awsSubscriber.subscribe("road/" + segmentId + "/bins", (msg) -> {
+            awsSubscriber.subscribe(Vehicle.TOPIC_BASE + "/road/" + segmentId + "/bins", (msg) -> {
                 System.out.println("[Truck-AWS] Bin presence on " + segmentId + ": " + msg.getPayload());
             });
 
             // Smart Traffic: Road status/events
-            smartTrafficSubscriber.subscribe("road/" + segmentId + "/info", (msg) -> {
+            smartTrafficSubscriber.subscribe(Vehicle.TOPIC_BASE + "/road/" + segmentId + "/info", (msg) -> {
                 System.out.println("[Truck-Traffic] Road info update for " + segmentId + ": " + msg.getPayload());
             });
         } catch (Exception e) {
