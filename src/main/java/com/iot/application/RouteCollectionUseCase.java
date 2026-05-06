@@ -1,9 +1,7 @@
 package com.iot.application;
 
-import com.iot.domain.GarbageTruck;
 import com.iot.domain.Route;
 import com.iot.domain.SmartBinDevice;
-import com.iot.domain.TrafficMessagePayload;
 import com.iot.ports.out.MessageSubscriber;
 import com.iot.ports.out.TrafficService;
 import com.iot.ports.out.VehicleNavigationPort;
@@ -27,35 +25,22 @@ public class RouteCollectionUseCase {
 
     /**
      * Simulates the calculation and setting of a collection route.
-     * In this project, route calculation is theoretical and therefore simulated.
      */
     public void calculateAndSetRoute(String truckId, List<SmartBinDevice> bins) {
-        System.out.println("[SIMULATION] Calculating optimal collection route for truck: " + truckId);
-        System.out.println("[SIMULATION] Analyzing fill levels for " + bins.size() + " bins...");
+        System.out.println("[SIMULATION] Calculating optimal route for truck: " + truckId);
         
-        // Theoretical Route: In a real implementation, this would involve pathfinding
-        // based on bin locations and current traffic density.
         Route simulatedRoute = new Route();
         for (SmartBinDevice bin : bins) {
-            // A segment (tramo) is a list of two points
             Route.RoutePoint start = new Route.RoutePoint(bin.getRoadLocation().getRoadSegmentId(), 0.0);
             Route.RoutePoint end = new Route.RoutePoint(bin.getRoadLocation().getRoadSegmentId(), bin.getRoadLocation().getKilometricPoint());
             simulatedRoute.addSegment(start, end);
         }
 
-        System.out.println("[SIMULATION] Route optimized. Total stops: " + simulatedRoute.getSegments().size());
-
         try {
-            // We still send the "calculated" route to the navigation port to simulate the message exchange
             navigationPort.setRoute(truckId, simulatedRoute);
-            System.out.println("[SIMULATION] Route message sent to truck " + truckId);
+            System.out.println("[SIMULATION] Route optimized and sent to navigation system.");
         } catch (Exception e) {
-            System.err.println("Error simulating route for truck " + truckId + ": " + e.getMessage());
+            System.err.println("Error setting route: " + e.getMessage());
         }
-    }
-
-    public void handleTrafficIncident(TrafficMessagePayload incident) {
-        System.out.println("Handling traffic incident at " + incident.getRoadSegment() + ": " + incident.getAction());
-        // Logic to reroute trucks if necessary
     }
 }

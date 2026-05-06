@@ -1,13 +1,21 @@
 package com.iot.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iot.ports.out.MessagePublisher;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Represents a vehicle in the Smart Traffic system.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Vehicle {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     private String id;
     private Characterization characterization;
     @JsonProperty("cruiser-speed")
@@ -15,6 +23,76 @@ public class Vehicle {
     private int speed;
     private String status;
     private Navigator navigator;
+
+    @JsonIgnore
+    protected MessagePublisher smartTrafficPublisher;
+    @JsonIgnore
+    protected RoadLocation currentLocation;
+
+    public Vehicle() {}
+
+    public Vehicle(String id, MessagePublisher smartTrafficPublisher) {
+        this.id = id;
+        this.smartTrafficPublisher = smartTrafficPublisher;
+    }
+
+    public void updateLocation(RoadLocation newLocation) {
+        if (currentLocation != null && !currentLocation.getRoadSegmentId().equals(newLocation.getRoadSegmentId())) {
+            publishTrafficEvent("VEHICLE_OUT", currentLocation.getRoadSegmentId(), currentLocation.getKilometricPoint());
+        }
+        
+        boolean isNewSegment = currentLocation == null || !currentLocation.getRoadSegmentId().equals(newLocation.getRoadSegmentId());
+        this.currentLocation = newLocation;
+        
+        if (isNewSegment) {
+            publishTrafficEvent("VEHICLE_IN", currentLocation.getRoadSegmentId(), currentLocation.getKilometricPoint());
+        }
+    }
+
+    public void reportAccident(String segmentId, double kp) {
+        publishAlert("accident", segmentId, kp);
+    }
+
+    protected void publishTrafficEvent(String action, String segmentId, double kp) {
+        if (smartTrafficPublisher == null) return;
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("action", action);
+            payload.put("vehicleId", id);
+            payload.put("road", segmentId);
+            payload.put("kp", kp);
+            if (characterization != null) {
+                payload.put("role", characterization.getRole());
+            }
+
+            String jsonPayload = objectMapper.writeValueAsString(payload);
+            String topic = "road/" + segmentId + "/traffic";
+            
+            smartTrafficPublisher.publish(new Message(topic, jsonPayload));
+            System.out.println("[Traffic] " + action + " sent for " + id + " to " + topic);
+        } catch (Exception e) {
+            System.err.println("Error publishing traffic event: " + e.getMessage());
+        }
+    }
+
+    protected void publishAlert(String event, String segmentId, double kp) {
+        if (smartTrafficPublisher == null) return;
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("event", event);
+            payload.put("road", segmentId);
+            payload.put("kp", kp);
+            payload.put("vehicleId", id);
+
+            String jsonPayload = objectMapper.writeValueAsString(payload);
+            String topic = "road/" + segmentId + "/alerts";
+            
+            smartTrafficPublisher.publish(new Message(topic, jsonPayload));
+            System.out.println("[Traffic] ALERT (" + event + ") sent for " + id + " to " + topic);
+        } catch (Exception e) {
+            System.err.println("Error publishing alert: " + e.getMessage());
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Characterization {
@@ -74,6 +152,9 @@ public class Vehicle {
 
     public Navigator getNavigator() { return navigator; }
     public void setNavigator(Navigator navigator) { this.navigator = navigator; }
+
+    @JsonIgnore
+    public RoadLocation getCurrentLocation() { return currentLocation; }
 
     @Override
     public String toString() {

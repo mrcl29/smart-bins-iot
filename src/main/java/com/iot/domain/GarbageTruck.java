@@ -2,32 +2,59 @@ package com.iot.domain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iot.ports.out.MessagePublisher;
+import com.iot.ports.out.MessageSubscriber;
 
 /**
  * Represents a garbage truck, which is a specialized vehicle with waste collection capabilities.
  */
 public class GarbageTruck extends Vehicle {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    
-    private RoadLocation currentLocation;
-    private final MessagePublisher publisher;
+    private final MessageSubscriber awsSubscriber;
+    private final MessageSubscriber smartTrafficSubscriber;
 
-    public GarbageTruck(String vehicleId, MessagePublisher publisher) {
-        super();
-        this.setId(vehicleId);
-        this.publisher = publisher;
+    public GarbageTruck(String vehicleId, MessagePublisher smartTrafficPublisher, 
+                        MessageSubscriber awsSubscriber, MessageSubscriber smartTrafficSubscriber) {
+        super(vehicleId, smartTrafficPublisher);
+        this.awsSubscriber = awsSubscriber;
+        this.smartTrafficSubscriber = smartTrafficSubscriber;
         
-        // Initialize with default characterization for a garbage truck
-        Characterization characterization = new Characterization();
-        characterization.setRole("MedicalAssistance"); // Role used for simulation priority
-        characterization.setType("GarbageTruck");
-        this.setCharacterization(characterization);
+        // Initialize characterization
+        Characterization charact = new Characterization();
+        charact.setRole("MedicalAssistance"); // Priority role
+        charact.setType("GarbageTruck");
+        this.setCharacterization(charact);
+
+        setupSubscriptions();
     }
 
-    public void updateLocation(RoadLocation newLocation) {
-        this.currentLocation = newLocation;
-        // When location is updated, we sync with the traffic system
-        publishTrafficEvent("CHECK_IN");
+    private void setupSubscriptions() {
+        try {
+            // Subscribe to AWS Bins topics
+            awsSubscriber.subscribe("bins/sensors", (msg) -> {
+                System.out.println("[Truck-AWS] Received bin status update: " + msg.getPayload());
+            });
+
+            // Subscribe to Smart Traffic Road Info
+            // In a real scenario, this would be per road segment the truck is interested in
+            // For simulation, we can use a wildcard if supported or specific ones
+        } catch (Exception e) {
+            System.err.println("Error setting up truck subscriptions: " + e.getMessage());
+        }
+    }
+
+    public void subscribeToRoad(String segmentId) {
+        try {
+            // AWS: Bin locations in this road
+            awsSubscriber.subscribe("road/" + segmentId + "/bins", (msg) -> {
+                System.out.println("[Truck-AWS] Bin presence on " + segmentId + ": " + msg.getPayload());
+            });
+
+            // Smart Traffic: Road status/events
+            smartTrafficSubscriber.subscribe("road/" + segmentId + "/info", (msg) -> {
+                System.out.println("[Truck-Traffic] Road info update for " + segmentId + ": " + msg.getPayload());
+            });
+        } catch (Exception e) {
+            System.err.println("Error subscribing to road " + segmentId + ": " + e.getMessage());
+        }
     }
 
     /**
@@ -35,29 +62,5 @@ public class GarbageTruck extends Vehicle {
      */
     public void collectWaste(String binId) {
         System.out.println("Truck " + getId() + " is collecting waste from bin: " + binId);
-        // This could trigger a specific message in a real scenario
     }
-
-    private void publishTrafficEvent(String action) {
-        if (currentLocation == null) return;
-        
-        try {
-            TrafficMessagePayload payload = new TrafficMessagePayload();
-            payload.setAction(action);
-            payload.setVehicleId(getId());
-            payload.setRoadSegment(currentLocation.getRoadSegmentId());
-            payload.setPosition(currentLocation.getKilometricPoint());
-            payload.setRole(getCharacterization().getRole());
-
-            String jsonPayload = objectMapper.writeValueAsString(payload);
-            String topic = "iot/2023/smart-bins/road/" + currentLocation.getRoadSegmentId() + "/traffic";
-            
-            Message msg = new Message(topic, jsonPayload);
-            publisher.publish(msg);
-        } catch (Exception e) {
-            System.err.println("Error publishing traffic event for truck " + getId() + ": " + e.getMessage());
-        }
-    }
-
-    public RoadLocation getCurrentLocation() { return currentLocation; }
 }

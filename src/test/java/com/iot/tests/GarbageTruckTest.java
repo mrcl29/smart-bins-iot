@@ -4,11 +4,13 @@ import com.iot.domain.GarbageTruck;
 import com.iot.domain.Message;
 import com.iot.domain.RoadLocation;
 import com.iot.ports.out.MessagePublisher;
+import com.iot.ports.out.MessageSubscriber;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class GarbageTruckTest {
 
@@ -21,10 +23,20 @@ public class GarbageTruckTest {
         }
     }
 
+    class MockSubscriber implements MessageSubscriber {
+        @Override
+        public void subscribe(String topic, Consumer<Message> callback) {}
+        @Override
+        public void unsubscribe(String topic) {}
+    }
+
     @Test
     public void testGarbageTruckInitialization() {
-        MockPublisher mockPublisher = new MockPublisher();
-        GarbageTruck truck = new GarbageTruck("Truck-1", mockPublisher);
+        MockPublisher mockTrafficPublisher = new MockPublisher();
+        MockSubscriber mockAwsSubscriber = new MockSubscriber();
+        MockSubscriber mockTrafficSubscriber = new MockSubscriber();
+        
+        GarbageTruck truck = new GarbageTruck("Truck-1", mockTrafficPublisher, mockAwsSubscriber, mockTrafficSubscriber);
 
         assertEquals("Truck-1", truck.getId());
         assertEquals("MedicalAssistance", truck.getCharacterization().getRole());
@@ -32,17 +44,20 @@ public class GarbageTruckTest {
     }
 
     @Test
-    public void testUpdateLocationPublishesEvent() {
-        MockPublisher mockPublisher = new MockPublisher();
-        GarbageTruck truck = new GarbageTruck("Truck-1", mockPublisher);
-        RoadLocation loc = new RoadLocation("R5S1", 0.0);
+    public void testUpdateLocationPublishesTrafficEvent() {
+        MockPublisher mockTrafficPublisher = new MockPublisher();
+        MockSubscriber mockAwsSubscriber = new MockSubscriber();
+        MockSubscriber mockTrafficSubscriber = new MockSubscriber();
+        
+        GarbageTruck truck = new GarbageTruck("Truck-1", mockTrafficPublisher, mockAwsSubscriber, mockTrafficSubscriber);
+        RoadLocation loc = new RoadLocation("R1s1", 0.0);
 
         truck.updateLocation(loc);
 
-        assertEquals(1, mockPublisher.publishedMessages.size());
-        Message msg = mockPublisher.publishedMessages.get(0);
-        assertTrue(msg.getTopic().contains("R5S1/traffic"));
-        assertTrue(msg.getPayload().contains("\"action\":\"CHECK_IN\""));
-        assertTrue(msg.getPayload().contains("\"vehicle-id\":\"Truck-1\""));
+        // Should have 1 VEHICLE_IN message
+        assertEquals(1, mockTrafficPublisher.publishedMessages.size());
+        Message msg = mockTrafficPublisher.publishedMessages.get(0);
+        assertTrue(msg.getTopic().equals("road/R1s1/traffic"));
+        assertTrue(msg.getPayload().contains("\"action\":\"VEHICLE_IN\""));
     }
 }

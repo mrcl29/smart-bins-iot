@@ -4,36 +4,38 @@ import com.iot.domain.Message;
 import java.util.function.Consumer;
 
 /**
- * Generic MQTT implementation of the MQTT adapter (Stub).
+ * Generic MQTT implementation for simulation (Stub).
+ * Logs all operations to the console to visualize traffic.
  */
 public class GenericMqttPublisher extends AbstractMqttAdapter {
 
     public GenericMqttPublisher(String brokerUrl, String clientId) {
         super(brokerUrl, clientId);
+        System.out.println("[Traffic-Broker] Initialized simulator for " + brokerUrl);
     }
 
     @Override
     protected void ensureConnected() throws Exception {
-        // Implementation for standard MQTT connection
+        // Simulated connection
     }
 
     @Override
     protected void performPublish(Message message) throws Exception {
-        // Implementation for publishing
+        System.out.println("[Traffic-Broker] PUBLISH to " + message.getTopic() + ": " + message.getPayload());
     }
 
     @Override
     protected void performSubscribe(String topic, Consumer<Message> callback) throws Exception {
-        // Implementation for subscribing
+        System.out.println("[Traffic-Broker] SUBSCRIBE to " + topic);
     }
 
     @Override
     protected void performUnsubscribe(String topic) throws Exception {
-        // Implementation for unsubscribing
+        System.out.println("[Traffic-Broker] UNSUBSCRIBE from " + topic);
     }
 
     @Override
     public void close() throws Exception {
-        System.out.println("Closing generic MQTT connection.");
+        System.out.println("[Traffic-Broker] Closing simulated connection.");
     }
 }
