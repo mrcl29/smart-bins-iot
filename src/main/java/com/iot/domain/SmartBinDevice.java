@@ -3,6 +3,8 @@ package com.iot.domain;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iot.domain.Message;
 import com.iot.ports.out.MessagePublisher;
+import com.iot.messages.BinSensorMessage;
+import com.iot.utils.JsonUtil;
 
 /**
  * Scalable Smart Bin device implementation.
@@ -10,13 +12,13 @@ import com.iot.ports.out.MessagePublisher;
  */
 public class SmartBinDevice extends SensorDevice {
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    
+
     private final double alertThreshold;
     private final String wasteType;
     private RoadLocation location;
 
-    public SmartBinDevice(String deviceId, MessagePublisher publisher, double alertThreshold, 
-                          String wasteType, RoadLocation location) {
+    public SmartBinDevice(String deviceId, MessagePublisher publisher, double alertThreshold,
+            String wasteType, RoadLocation location) {
         super(deviceId, publisher);
         this.alertThreshold = alertThreshold;
         this.wasteType = wasteType;
@@ -30,7 +32,7 @@ public class SmartBinDevice extends SensorDevice {
      */
     public void updateFillLevel(double level) {
         publishMessage(level, "OK", "telemetry/bins/");
-        
+
         if (level >= alertThreshold) {
             publishMessage(level, "CRITICAL", "alerts/bins/");
         }
@@ -46,16 +48,25 @@ public class SmartBinDevice extends SensorDevice {
 
     private void publishMessage(double level, String status, String topicPrefix) {
         try {
-            SmartBinPayload.BinMetadata metadata = new SmartBinPayload.BinMetadata(wasteType, location);
-            SmartBinPayload payload = new SmartBinPayload(getDeviceId(), status, level, alertThreshold, metadata);
-            
-            String jsonPayload = objectMapper.writeValueAsString(payload);
-            String topic = topicPrefix + getDeviceId();
-            
-            Message msg = new Message(topic, jsonPayload);
-            getPublisher().publish(msg);
-            
-            System.out.println(String.format("[%s] Published to %s: %s", status, topic, wasteType));
+            // Crear mensaje según nuevo modelo
+            BinSensorMessage msg = new BinSensorMessage();
+            msg.binId = getDeviceId();
+            msg.fillLevel = (int) level;
+            msg.type = wasteType;
+            msg.timestamp = System.currentTimeMillis();
+            msg.roadSegment = location != null ? location.toString() : "unknown";
+
+            // Convertir a JSON
+            String jsonPayload = JsonUtil.toJson(msg);
+
+            // Topic correcto según arquitectura
+            String topic = "bins/sensors";
+
+            Message message = new Message(topic, jsonPayload);
+            getPublisher().publish(message);
+
+            System.out.println("SmartBin JSON sent: " + jsonPayload);
+
         } catch (Exception e) {
             System.err.println("Error publishing smart bin message: " + e.getMessage());
         }
