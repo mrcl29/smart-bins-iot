@@ -2,11 +2,13 @@ package com.iot.infrastructure.mqtt;
 
 import com.iot.domain.Message;
 import software.amazon.awssdk.crt.mqtt.MqttClientConnection;
+import software.amazon.awssdk.crt.mqtt.MqttClientConnectionEvents;
 import software.amazon.awssdk.crt.mqtt.MqttMessage;
 import software.amazon.awssdk.crt.mqtt.QualityOfService;
 import software.amazon.awssdk.iot.AwsIotMqttConnectionBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
@@ -18,9 +20,10 @@ public class AwsMqttAdapter extends AbstractMqttAdapter {
     private final String privateKeyPath;
     private final String caPath;
     private MqttClientConnection connection;
+    private AwsIotMqttConnectionBuilder builder;
 
-    public AwsMqttAdapter(String endpoint, String certPath, String keyPath, String caPath) {
-        super(endpoint, "smart-traffic-adapter-" + System.currentTimeMillis());
+    public AwsMqttAdapter(String endpoint, String certPath, String keyPath, String caPath) throws RuntimeException {
+        super(endpoint, "smart-bin-" + UUID.randomUUID().toString());
         this.certificatePath = certPath;
         this.privateKeyPath = keyPath;
         this.caPath = caPath;
@@ -28,32 +31,53 @@ public class AwsMqttAdapter extends AbstractMqttAdapter {
     }
 
     private void authenticateAndConnect() {
-        try (AwsIotMqttConnectionBuilder builder = AwsIotMqttConnectionBuilder.newMtlsBuilderFromPath(
-                certificatePath, privateKeyPath)) {
+        try {
+            this.builder = AwsIotMqttConnectionBuilder.newMtlsBuilderFromPath(certificatePath, privateKeyPath);
 
             if (caPath != null && !caPath.isEmpty()) {
                 builder.withCertificateAuthorityFromPath(null, caPath);
             }
 
             builder.withEndpoint(brokerUrl)
-                   .withClientId(clientId)
-                   .withCleanSession(true);
+                    .withClientId(clientId)
+                    .withCleanSession(true)
+                    .withKeepAliveSecs(30)
+                    .withProtocolOperationTimeoutMs(60000);
+
+            // Correct way to handle connection events in AWS SDK v2
+            builder.withConnectionEventCallbacks(new MqttClientConnectionEvents() {
+                @Override
+                public void onConnectionInterrupted(int errorCode) {
+                    System.err.println("[AWS-MQTT] Connection interrupted. Error Code: " + errorCode);
+                }
+
+                @Override
+                public void onConnectionResumed(boolean sessionPresent) {
+                    System.out.println("[AWS-MQTT] Connection resumed. Session present: " + sessionPresent);
+                }
+            });
 
             this.connection = builder.build();
-            CompletableFuture<Boolean> connected = connection.connect();
 
-            if (connected.get()) {
-                System.out.println("Successfully connected to AWS IoT Core: " + this.brokerUrl);
-            }
+            CompletableFuture<Boolean> connected = connection.connect();
+            boolean sessionPresent = connected.get();
+
+            System.out.println("Successfully connected to AWS IoT Core: " + this.brokerUrl + " as " + this.clientId);
+            System.out.println("Session resumed (sessionPresent): " + sessionPresent);
+
         } catch (Exception e) {
-            System.err.println("Error during AWS IoT connection: " + e.getMessage());
+            if (builder != null) {
+                builder.close();
+                builder = null;
+            }
+            throw new RuntimeException("Error during AWS IoT connection: " + e.getMessage(), e);
         }
     }
 
     @Override
     protected void ensureConnected() throws Exception {
         if (connection == null) {
-            throw new IllegalStateException("AWS MQTT connection is not established.");
+            throw new IllegalStateException("AWS MQTT connection was never initialized.");
         }
     }
 
@@ -62,17 +86,43 @@ public class AwsMqttAdapter extends AbstractMqttAdapter {
         MqttMessage mqttMessage = new MqttMessage(
                 message.getTopic(),
                 message.getPayload().getBytes(StandardCharsets.UTF_8),
-                QualityOfService.AT_LEAST_ONCE
-        );
-        connection.publish(mqttMessage).get();
+                QualityOfService.AT_LEAST_ONCE);
+
+        // Retry logic for transient hangups
+        int retries = 3;
+        while (retries > 0) {
+            try {
+                connection.publish(mqttMessage).get();
+                return;
+            } catch (Exception e) {
+                retries--;
+                if (retries == 0)
+                    throw e;
+                System.err.println("[AWS-MQTT] Publish failed, retrying... " + e.getMessage());
+                Thread.sleep(2000);
+            }
+        }
     }
 
     @Override
     protected void performSubscribe(String topic, Consumer<Message> callback) throws Exception {
-        connection.subscribe(topic, QualityOfService.AT_LEAST_ONCE, (mqttMessage) -> {
-            String payload = new String(mqttMessage.getPayload(), StandardCharsets.UTF_8);
-            callback.accept(new Message(mqttMessage.getTopic(), payload));
-        }).get();
+        // int retries = 5;
+        // while (retries > 0) {
+        try {
+            connection.subscribe(topic, QualityOfService.AT_LEAST_ONCE, (mqttMessage) -> {
+                String payload = new String(mqttMessage.getPayload(), StandardCharsets.UTF_8);
+                callback.accept(new Message(mqttMessage.getTopic(), payload));
+            }).get();
+            return;
+        } catch (Exception e) {
+            // retries--;
+            // if (retries == 0)
+            System.err.println("[AWS-MQTT] Subscribe to " + topic
+                    + " failed.");
+
+            throw e;
+        }
+        // }
     }
 
     @Override
@@ -85,6 +135,11 @@ public class AwsMqttAdapter extends AbstractMqttAdapter {
         if (connection != null) {
             connection.disconnect();
             connection.close();
+            connection = null;
+        }
+        if (builder != null) {
+            builder.close();
+            builder = null;
         }
     }
 }

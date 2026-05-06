@@ -8,13 +8,11 @@ import com.iot.ports.out.MessageSubscriber;
  */
 public class GarbageTruck extends Vehicle {
     private final MessageSubscriber awsSubscriber;
-    private final MessageSubscriber smartTrafficSubscriber;
 
     public GarbageTruck(String vehicleId, MessagePublisher smartTrafficPublisher,
                                 MessageSubscriber awsSubscriber, MessageSubscriber smartTrafficSubscriber) {
-        super(vehicleId, smartTrafficPublisher);
+        super(vehicleId, smartTrafficPublisher, smartTrafficSubscriber);
         this.awsSubscriber = awsSubscriber;
-        this.smartTrafficSubscriber = smartTrafficSubscriber;
 
         // Initialize characterization
         Characterization charact = new Characterization();
@@ -22,37 +20,41 @@ public class GarbageTruck extends Vehicle {
         charact.setType("GarbageTruck");
         this.setCharacterization(charact);
 
-        setupSubscriptions();
+        setupStaticSubscriptions();
     }
 
-    private void setupSubscriptions() {
+    private void setupStaticSubscriptions() {
         try {
-            // Subscribe to AWS Bins topics
-            awsSubscriber.subscribe(Vehicle.TOPIC_BASE + "/bins/sensors", (msg) -> {
+            // Subscribe to AWS Bins sensors topic (Global for the truck)
+            awsSubscriber.subscribe(SmartBinDevice.TOPIC_BASE_AWS + "bins/sensors", (msg) -> {
                 System.out.println("[Truck-AWS] Received bin status update: " + msg.getPayload());
             });
-
-            // Subscribe to Smart Traffic Road Info
-            // In a real scenario, this would be per road segment the truck is interested in
-            // For simulation, we can use a wildcard if supported or specific ones
         } catch (Exception e) {
-            System.err.println("Error setting up truck subscriptions: " + e.getMessage());
+            System.err.println("Error setting up truck static subscriptions: " + e.getMessage());
         }
     }
 
-    public void subscribeToRoad(String segmentId) {
+    @Override
+    protected void handleRoadSubscribe(String segmentId) {
+        super.handleRoadSubscribe(segmentId);
         try {
             // AWS: Bin locations in this road
-            awsSubscriber.subscribe(Vehicle.TOPIC_BASE + "/road/" + segmentId + "/bins", (msg) -> {
+            awsSubscriber.subscribe(SmartBinDevice.TOPIC_BASE_AWS + "road/" + segmentId + "/bins", (msg) -> {
                 System.out.println("[Truck-AWS] Bin presence on " + segmentId + ": " + msg.getPayload());
             });
-
-            // Smart Traffic: Road status/events
-            smartTrafficSubscriber.subscribe(Vehicle.TOPIC_BASE + "/road/" + segmentId + "/info", (msg) -> {
-                System.out.println("[Truck-Traffic] Road info update for " + segmentId + ": " + msg.getPayload());
-            });
         } catch (Exception e) {
-            System.err.println("Error subscribing to road " + segmentId + ": " + e.getMessage());
+            System.err.println("Error subscribing to AWS road bins for " + getId() + ": " + e.getMessage());
+        }
+    }
+
+    @Override
+    protected void handleRoadUnsubscribe(String segmentId) {
+        super.handleRoadUnsubscribe(segmentId);
+        try {
+            // AWS: Bin locations in this road
+            awsSubscriber.unsubscribe(SmartBinDevice.TOPIC_BASE_AWS + "road/" + segmentId + "/bins");
+        } catch (Exception e) {
+            System.err.println("Error unsubscribing from AWS road bins for " + getId() + ": " + e.getMessage());
         }
     }
 

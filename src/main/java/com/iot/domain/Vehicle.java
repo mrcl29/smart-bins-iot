@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iot.ports.out.MessagePublisher;
+import com.iot.ports.out.MessageSubscriber;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,25 +29,54 @@ public class Vehicle {
     @JsonIgnore
     protected MessagePublisher smartTrafficPublisher;
     @JsonIgnore
+    protected MessageSubscriber smartTrafficSubscriber;
+    @JsonIgnore
     protected RoadLocation currentLocation;
 
     public Vehicle() {}
 
-    public Vehicle(String id, MessagePublisher smartTrafficPublisher) {
+    public Vehicle(String id, MessagePublisher smartTrafficPublisher, MessageSubscriber smartTrafficSubscriber) {
         this.id = id;
         this.smartTrafficPublisher = smartTrafficPublisher;
+        this.smartTrafficSubscriber = smartTrafficSubscriber;
     }
 
     public void updateLocation(RoadLocation newLocation) {
         if (currentLocation != null && !currentLocation.getRoadSegmentId().equals(newLocation.getRoadSegmentId())) {
-            publishTrafficEvent("VEHICLE_OUT", currentLocation.getRoadSegmentId(), currentLocation.getKilometricPoint());
+            String oldSegment = currentLocation.getRoadSegmentId();
+            publishTrafficEvent("VEHICLE_OUT", oldSegment, currentLocation.getKilometricPoint());
+            handleRoadUnsubscribe(oldSegment);
         }
-        
+
         boolean isNewSegment = currentLocation == null || !currentLocation.getRoadSegmentId().equals(newLocation.getRoadSegmentId());
         this.currentLocation = newLocation;
-        
+
         if (isNewSegment) {
-            publishTrafficEvent("VEHICLE_IN", currentLocation.getRoadSegmentId(), currentLocation.getKilometricPoint());
+            String newSegment = currentLocation.getRoadSegmentId();
+            publishTrafficEvent("VEHICLE_IN", newSegment, currentLocation.getKilometricPoint());
+            handleRoadSubscribe(newSegment);
+        }
+    }
+
+    protected void handleRoadSubscribe(String segmentId) {
+        if (smartTrafficSubscriber == null) return;
+        try {
+            String topic = TOPIC_BASE + "/road/" + segmentId + "/info";
+            smartTrafficSubscriber.subscribe(topic, (msg) -> {
+                System.out.println("[Vehicle-Traffic] " + id + " received info for " + segmentId + ": " + msg.getPayload());
+            });
+        } catch (Exception e) {
+            System.err.println("Error subscribing to road info for " + id + ": " + e.getMessage());
+        }
+    }
+
+    protected void handleRoadUnsubscribe(String segmentId) {
+        if (smartTrafficSubscriber == null) return;
+        try {
+            String topic = TOPIC_BASE + "/road/" + segmentId + "/info";
+            smartTrafficSubscriber.unsubscribe(topic);
+        } catch (Exception e) {
+            System.err.println("Error unsubscribing from road info for " + id + ": " + e.getMessage());
         }
     }
 
@@ -69,7 +99,7 @@ public class Vehicle {
 
             String jsonPayload = buildPayload("TRAFFIC", msgPayload);
             String topic = TOPIC_BASE + "/road/" + segmentId + "/traffic";
-            
+
             smartTrafficPublisher.publish(new Message(topic, jsonPayload));
             System.out.println("[Traffic] " + action + " sent for " + id + " to " + topic);
         } catch (Exception e) {
@@ -94,7 +124,7 @@ public class Vehicle {
 
             String jsonPayload = buildPayload("ROAD_INCIDENT", msgPayload);
             String topic = TOPIC_BASE + "/road/" + segmentId + "/alerts";
-            
+
             smartTrafficPublisher.publish(new Message(topic, jsonPayload));
             System.out.println("[Traffic] ALERT (" + incidentType + ") sent for " + id + " to " + topic);
         } catch (Exception e) {

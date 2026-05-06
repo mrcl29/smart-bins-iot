@@ -37,21 +37,29 @@ classDiagram
         +TOPIC_BASE: String
         +id: String
         +characterization: Characterization
+        #smartTrafficPublisher: MessagePublisher
+        #smartTrafficSubscriber: MessageSubscriber
         +updateLocation(newLoc: RoadLocation) void
         +reportAccident(segment: String, kp: double) void
+        #handleRoadSubscribe(segmentId: String) void
+        #handleRoadUnsubscribe(segmentId: String) void
         #publishTrafficEvent(action: String, segment: String, kp: double) void
         #publishAlert(type: String, segment: String, kp: double) void
     }
 
     class GarbageTruck {
+        -awsSubscriber: MessageSubscriber
         +collectWaste(binId: String) void
-        +subscribeToRoad(segmentId: String) void
+        #handleRoadSubscribe(segmentId: String) void
+        #handleRoadUnsubscribe(segmentId: String) void
     }
 
     class SmartBinDevice {
+        +TOPIC_BASE_AWS: String
         -alertThreshold: double
         -wasteType: String
         -location: RoadLocation
+        -smartTrafficSubscriber: MessageSubscriber
         +updateFillLevel(level: double) void
         +updateLocation(newLoc: RoadLocation) void
         -publishPresence(action: String) void
@@ -73,28 +81,20 @@ classDiagram
     %% ==========================================
     %% Infrastructure Adapters
     %% ==========================================
+    class AbstractMqttAdapter {
+        <<abstract>>
+        #brokerUrl: String
+        #clientId: String
+    }
+
     class AwsMqttAdapter {
         -connection: MqttClientConnection
     }
 
-    class GenericMqttPublisher {
-        -subscribers: Map~String, List~Consumer~~
+    class PahoMqttAdapter {
+        -client: MqttClient
         +publish(msg: Message) void
         +subscribe(topic: String, callback: Consumer) void
-        -matches(pattern: String, topic: String) boolean
-    }
-
-    class RestTrafficAdapter {
-        -restClient: HttpRestClient
-    }
-
-    class RestVehicleNavigationAdapter {
-        -restClient: HttpRestClient
-    }
-
-    class MockTrafficServer {
-        +start() void
-        +stop() void
     }
 
     %% ==========================================
@@ -107,17 +107,17 @@ classDiagram
     MessagePublisher <|.. AbstractMqttAdapter : Implements
     MessageSubscriber <|.. AbstractMqttAdapter : Implements
     AbstractMqttAdapter <|-- AwsMqttAdapter : Extends
-    AbstractMqttAdapter <|-- GenericMqttPublisher : Extends
+    AbstractMqttAdapter <|-- PahoMqttAdapter : Extends
     
     TrafficService <|.. RestTrafficAdapter : Implements
     VehicleNavigationPort <|.. RestVehicleNavigationAdapter : Implements
 
-    App --> MockTrafficServer : Manages Fallback
-    App --> GenericMqttPublisher : Initializes (Simulation)
+    App --> AwsMqttAdapter : Initializes
+    App --> PahoMqttAdapter : Initializes
     App --> RouteCollectionUseCase : Orchestrates
     
     RouteCollectionUseCase --> TrafficService : Uses
     RouteCollectionUseCase --> VehicleNavigationPort : Uses
     
-    GarbageTruck --> MessageSubscriber : Listens to AWS/Traffic
-    SmartBinDevice --> MessageSubscriber : Listens to Road Info
+    GarbageTruck --> MessageSubscriber : Dynamic AWS/Traffic Sub
+    SmartBinDevice --> MessageSubscriber : Dynamic Road Info Sub

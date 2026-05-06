@@ -14,6 +14,7 @@ import java.util.Map;
 public class SmartBinDevice extends SensorDevice {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     public static final String TOPIC_BASE = "es/upv/pros/tatami/smartcities/traffic/PTPaterna";
+    public static final String TOPIC_BASE_AWS = "es/upv/aws/";
 
     private final double alertThreshold;
     private final String wasteType;
@@ -69,7 +70,7 @@ public class SmartBinDevice extends SensorDevice {
             msgPayload.put("type", wasteType);
 
             String jsonPayload = buildPayload("BIN_SENSOR", msgPayload);
-            Message msg = new Message(TOPIC_BASE + "/bins/sensors", jsonPayload);
+            Message msg = new Message(TOPIC_BASE_AWS + "bins/sensors", jsonPayload);
             getPublisher().publish(msg);
 
             System.out.println("[AWS] Status sent to bins/sensors for " + getDeviceId());
@@ -79,11 +80,19 @@ public class SmartBinDevice extends SensorDevice {
     }
 
     public void updateLocation(RoadLocation newLocation) {
+        if (location != null && !location.getRoadSegmentId().equals(newLocation.getRoadSegmentId())) {
+            try {
+                String oldTopic = TOPIC_BASE + "/road/" + location.getRoadSegmentId() + "/info";
+                smartTrafficSubscriber.unsubscribe(oldTopic);
+            } catch (Exception e) {
+                System.err.println("Error unsubscribing bin from " + location.getRoadSegmentId() + ": " + e.getMessage());
+            }
+        }
+
         publishPresence("BIN_OUT");
         this.location = newLocation;
         publishPresence("BIN_IN");
-        // Re-setup subscriptions for the new road segment if necessary
-        // In a real system we would unsubscribe from old and subscribe to new
+        setupSubscriptions();
     }
 
     private void publishPresence(String action) {
@@ -99,7 +108,7 @@ public class SmartBinDevice extends SensorDevice {
             msgPayload.put("road-segment", location.getRoadSegmentId());
 
             String jsonPayload = buildPayload("BIN_POSITION", msgPayload);
-            String topic = TOPIC_BASE + "/road/" + location.getRoadSegmentId() + "/bins";
+            String topic = TOPIC_BASE_AWS + "road/" + location.getRoadSegmentId() + "/bins";
 
             Message msg = new Message(topic, jsonPayload);
             getPublisher().publish(msg);

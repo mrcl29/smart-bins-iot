@@ -5,10 +5,10 @@
 - `<topic-base>/road/{id-segmento}/alerts`: Aquí se reportan los accidentes en la carretera. Las carreteras estan subscritas a este topic para informar a otros vehiculos.
 - `<topic-base>/road/{id-segmento}/traffic`: Aquí los vehiculos reportan cuando entran y salen de la carretera. Las carreteras estan subscritas para informar del tráfico que tienen.
 - `<topic-base>/road/{id-segmento}/info`: Aquí las carreteras reportan información de sus eventos y estados para informar a otros dispositivos.
-- `<topic-base>/road/{id-segmento}/bins`: Aquí las basuras informan cuando entran y salen de una carretera para informar de su localización y que tipos de contenedores estan ahí en ese momento. Los camiones de la basura y las carreteras estan subscritos a este topic para tener información de las basuras y poder informar a otros vehículos.
-- `<topic-base>/bins/sensors`: Aquí las basuras informan de su estado actual. Los camiones de la basura estan subscritos para saber que basuras necesitan ser recogidas.
+- `<topic-base-aws>/road/{id-segmento}/bins`: Aquí las basuras informan cuando entran y salen de una carretera para informar de su localización y que tipos de contenedores estan ahí en ese momento. Los camiones de la basura y las carreteras estan subscritos a este topic para tener información de las basuras y poder informar a otros vehículos.
+- `<topic-base-aws>/bins/sensors`: Aquí las basuras informan de su estado actual. Los camiones de la basura estan subscritos para saber que basuras necesitan ser recogidas.
 
-El `topic-base` a usar es: `es/upv/pros/tatami/smartcities/traffic/PTPaterna`. Los topics de `<topic-base>/road/{id-segmento}/alerts`, `<topic-base>/road/{id-segmento}/traffic` y `<topic-base>/road/{id-segmento}/info` se encuentran en el bróker MQTT de `tcp://tambori.dsic.upv.es:10083`, mientras que los topics `<topic-base>/road/{id-segmento}/bins` y `<topic-base>/bins/sensors` irán por el bróker MQTT de AWS IoT configurado según las variables de entorno.
+El `topic-base` a usar es: `es/upv/pros/tatami/smartcities/traffic/PTPaterna`. El `topic-base-aws` a usar es: `es/upv/aws/`. Los topics de `<topic-base>/road/{id-segmento}/alerts`, `<topic-base>/road/{id-segmento}/traffic` y `<topic-base>/road/{id-segmento}/info` se encuentran en el bróker MQTT de `tcp://tambori.dsic.upv.es:10083`, mientras que los topics `<topic-base>/road/{id-segmento}/bins` y `<topic-base>/bins/sensors` irán por el bróker MQTT de AWS IoT configurado según las variables de entorno.
 
 ## Dispositivos
 

@@ -39,7 +39,7 @@ public class SmartBinDeviceTest {
         // Constructor already sends 1 BIN_IN message
         assertEquals(1, mockPublisher.publishedMessages.size());
         assertTrue(mockPublisher.publishedMessages.get(0).getTopic().contains("R1S1/bins"));
-        assertTrue(mockPublisher.publishedMessages.get(0).getTopic().startsWith(SmartBinDevice.TOPIC_BASE));
+        assertTrue(mockPublisher.publishedMessages.get(0).getTopic().startsWith(SmartBinDevice.TOPIC_BASE_AWS));
 
         bin.updateFillLevel(50.0);
 
