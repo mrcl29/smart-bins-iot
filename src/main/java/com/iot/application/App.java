@@ -23,7 +23,7 @@ public class App {
         String certPath = dotenv.get("AWS_CERT_PATH");
         String keyPath = dotenv.get("AWS_KEY_PATH");
         String caPath = dotenv.get("AWS_CA_PATH");
-        String trafficApiUrl = dotenv.get("TRAFFIC_API_URL", "http://ttmi008.iot.upv.es:10082");
+        String trafficApiUrl = dotenv.get("TRAFFIC_API_URL", "http://ttmi008.iot.upv.es:8182");
         String trafficMqttHost = dotenv.get("TRAFFIC_MQTT_HOST", "ttmi008.iot.upv.es");
 
         MockTrafficServer mockServer = null;
@@ -58,13 +58,13 @@ public class App {
             RoadLocation binLoc = new RoadLocation("R1s1", 10.0);
             SmartBinDevice bin1 = new SmartBinDevice("Bin_01", awsAdapter, trafficMqtt, 80.0, "ORGANIC", binLoc);
 
-            // 2. Garbage Truck (Dual focus)
+            // 2. Garbage Truck
             GarbageTruck truck = new GarbageTruck("Truck_01", trafficMqtt, awsAdapter, trafficMqtt);
 
             System.out.println("Registering truck in Smart Traffic system...");
             navigationPort.registerVehicle(truck);
 
-            // 3. Regular Vehicle (Traffic broker focus)
+            // 3. Regular Vehicle
             Vehicle car = new Vehicle("Car_01", trafficMqtt);
             navigationPort.registerVehicle(car);
 
@@ -78,16 +78,16 @@ public class App {
             car.updateLocation(new RoadLocation("R1s1", 50.0));
             car.reportAccident("R1s1", 55.0);
 
-            // Bin reaches high level -> Publishes to AWS bins/sensors
+            // Bin reaches high level
             System.out.println("\n--- Waste Collection Trigger ---");
             bin1.updateFillLevel(95.0);
 
-            // Truck "hears" it via subscription to AWS and routes
+            // Truck hears it via subscription to AWS and routes
             RouteCollectionUseCase routeUseCase = new RouteCollectionUseCase(trafficService, navigationPort,
                     trafficMqtt);
             routeUseCase.calculateAndSetRoute(truck.getId(), Arrays.asList(bin1));
 
-            // Simulating movement of bin (if it moved)
+            // Simulating movement of bin
             bin1.updateLocation(new RoadLocation("R1s2", 5.0));
 
             Thread.sleep(2000); // Allow some time for async messages (simulated)

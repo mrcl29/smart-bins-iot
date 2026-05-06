@@ -21,7 +21,7 @@ public class RestVehicleNavigationAdapter implements VehicleNavigationPort {
         Map<String, Object> payload = new HashMap<>();
         payload.put("id", vehicle.getId());
         payload.put("speed", vehicle.getSpeed() > 0 ? vehicle.getSpeed() : 80);
-        
+
         if (vehicle.getCharacterization() != null) {
             payload.put("type", vehicle.getCharacterization().getType());
             payload.put("role", vehicle.getCharacterization().getRole());
@@ -29,15 +29,15 @@ public class RestVehicleNavigationAdapter implements VehicleNavigationPort {
             payload.put("type", "Automobile");
             payload.put("role", "PrivateUsage");
         }
-        
-        // According to PDF 7.1.7: POST /vehicles to create a new vehicle
+
+        // POST /vehicles to create a new vehicle
         restClient.post("/vehicles", payload, Object.class);
         System.out.println("Vehicle registered successfully: " + vehicle.getId());
     }
 
     @Override
     public void setRoute(String vehicleId, Route route) throws Exception {
-        // According to PDF 7.1.8: PUT /vehicle/{vehicleId} with route payload
+        // PUT /vehicle/{vehicleId} with route payload
         restClient.put("/vehicle/" + vehicleId, route, Object.class);
     }
 }
