@@ -1,6 +1,5 @@
 package com.iot.domain;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iot.ports.out.MessagePublisher;
 import com.iot.ports.out.MessageSubscriber;
 
@@ -11,12 +10,12 @@ public class GarbageTruck extends Vehicle {
     private final MessageSubscriber awsSubscriber;
     private final MessageSubscriber smartTrafficSubscriber;
 
-    public GarbageTruck(String vehicleId, MessagePublisher smartTrafficPublisher, 
-                        MessageSubscriber awsSubscriber, MessageSubscriber smartTrafficSubscriber) {
+    public GarbageTruck(String vehicleId, MessagePublisher smartTrafficPublisher,
+                                MessageSubscriber awsSubscriber, MessageSubscriber smartTrafficSubscriber) {
         super(vehicleId, smartTrafficPublisher);
         this.awsSubscriber = awsSubscriber;
         this.smartTrafficSubscriber = smartTrafficSubscriber;
-        
+
         // Initialize characterization
         Characterization charact = new Characterization();
         charact.setRole("MedicalAssistance"); // Priority role

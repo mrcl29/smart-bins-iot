@@ -2,22 +2,12 @@ package com.iot.tests;
 
 import com.iot.ports.out.TrafficService;
 import com.iot.domain.Road;
-import com.iot.domain.RoadSegment;
 import com.iot.domain.Vehicle;
 import com.iot.infrastructure.rest.RestTrafficAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.net.http.HttpClient;
-import java.net.http.HttpResponse;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the TrafficService implementation.

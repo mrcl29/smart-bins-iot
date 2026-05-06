@@ -8,7 +8,6 @@ import software.amazon.awssdk.iot.AwsIotMqttConnectionBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 /**
@@ -31,18 +30,18 @@ public class AwsMqttAdapter extends AbstractMqttAdapter {
     private void authenticateAndConnect() {
         try (AwsIotMqttConnectionBuilder builder = AwsIotMqttConnectionBuilder.newMtlsBuilderFromPath(
                 certificatePath, privateKeyPath)) {
-            
+
             if (caPath != null && !caPath.isEmpty()) {
                 builder.withCertificateAuthorityFromPath(null, caPath);
             }
-            
+
             builder.withEndpoint(brokerUrl)
                    .withClientId(clientId)
                    .withCleanSession(true);
 
             this.connection = builder.build();
             CompletableFuture<Boolean> connected = connection.connect();
-            
+
             if (connected.get()) {
                 System.out.println("Successfully connected to AWS IoT Core: " + this.brokerUrl);
             }

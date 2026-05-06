@@ -1,7 +1,6 @@
 // src/domain/SensorDevice.java
 package com.iot.domain;
 
-import com.iot.domain.Message;
 import com.iot.ports.out.MessagePublisher;
 
 import java.util.Locale;
@@ -15,7 +14,7 @@ public class SensorDevice {
 
     /**
      * Injects the communication dependency into the device.
-     * 
+     *
      * @param deviceId  Unique identifier for the device.
      * @param publisher The protocol implementation used for sending data.
      */
@@ -34,7 +33,7 @@ public class SensorDevice {
 
     /**
      * Reads sensor data and publishes it.
-     * 
+     *
      * @param reading Value read by the physical sensor.
      */
     public void sendTelemetry(double reading) {
