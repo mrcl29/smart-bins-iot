@@ -68,7 +68,8 @@ public class App {
             truck.updateLocation(truckLoc);
 
             // Use Case orchestration
-            RouteCollectionUseCase routeUseCase = new RouteCollectionUseCase(trafficService, navigationPort, mqttAdapter);
+            RouteCollectionUseCase routeUseCase = new RouteCollectionUseCase(trafficService, navigationPort,
+                    mqttAdapter);
 
             System.out.println("\n--- Simulating Waste Collection ---");
             bin1.updateFillLevel(95.0); // Triggers alert
